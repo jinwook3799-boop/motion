@@ -8,6 +8,8 @@ import { firework, handPoints, PLAYER_COLORS } from './common.js';
 const GOAL = 10;
 const ALONE_HINT_AFTER = 4; // 한 명만 보이면 이 시간(초) 뒤에 친구와 함께 하자고 알려 준다
 const LEFT_HAND = new Set([P.lWrist, P.lIndex]);
+// 손을 댄 것을 이 시간(초) 동안 기억한다. 아이들이 손을 '탁' 치고 바로 떼도 둘이 거의 같이 대면 인정된다.
+const TOUCH_MEMORY = 0.5;
 
 // 하이파이브 별: 큰 별에 두 아이가 "동시에" 손을 대야 터진다.
 // 한 명만 있을 때는 두 손을 함께 대면 터진다(혼자서도 막히지 않게).
@@ -60,7 +62,7 @@ export class HighFiveScene {
     if (people.length >= 2) x = (people[0].center.x + people[1].center.x) / 2 + (Math.random() - 0.5) * unit * 0.15;
     x = Math.min(z.x + z.w - r * 1.5, Math.max(z.x + r * 1.5, x));
     const y = z.y + z.h * (0.22 + Math.random() * 0.3);
-    this.star = { x, y, r, age: 0, touch: [false, false] };
+    this.star = { x, y, r, age: 0, touch: [false, false], touched: new Map() };
     this.state = 'play';
     sfx.peek();
   }
@@ -95,15 +97,18 @@ export class HighFiveScene {
 
     // 별에 손을 댄 아이(와 어느 손인지)
     const reach = st.r * 1.3;
-    const touchers = [];
+    const now = this.game.time;
     for (const p of people) {
+      if (p.lost) continue;
       for (const idx of [P.lWrist, P.rWrist, P.lIndex, P.rIndex]) {
         const q = p.pose[idx];
         if (handPoints(p.pose).includes(q) && Math.hypot(q.x - st.x, q.y - st.y) < reach) {
-          touchers.push({ id: p.id, left: LEFT_HAND.has(idx) });
+          const left = LEFT_HAND.has(idx);
+          st.touched.set(`${p.id}-${left}`, { id: p.id, left, at: now });
         }
       }
     }
+    const touchers = [...st.touched.values()].filter((t) => now - t.at < TOUCH_MEMORY);
     const ids = new Set(touchers.map((t) => t.id));
     st.touch = [0, 1].map((k) => touchers.some((t) => this.rank(t.id) === k));
 

@@ -2,6 +2,7 @@ import { balloon, star, COLORS } from '../engine/draw.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
 import { firework } from './common.js';
+import { touches } from '../engine/hit.js';
 
 const GOAL = 8; // 팀마다 모을 별
 const MAX_PER_SIDE = 3;
@@ -103,7 +104,7 @@ export class TeamBalloonScene {
     const pad = this.game.unit * 0.025;
     for (const p of input.pointers) {
       for (const b of this.items) {
-        if (!b.gone && Math.hypot(p.x - b.x, p.y - b.y) < b.r * 1.2 + pad) this.pop(b);
+        if (!b.gone && touches(p, b.x, b.y, b.r * 1.2 + pad)) this.pop(b);
       }
     }
     this.items = this.items.filter((b) => !b.gone);

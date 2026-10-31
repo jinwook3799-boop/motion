@@ -312,3 +312,34 @@ export function questionMark(ctx, r, t = 0) {
     star(ctx, Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95, r * 0.12, COLORS.yellow);
   }
 }
+
+// 단계 표시(별 게이지 바로 아래): 지난 단계는 초록, 지금 단계는 크게 깜빡이는 주황, 남은 단계는 회색 동그라미
+export function levelSteps(ctx, game, level, total, pulse = 0) {
+  const { w, h, unit, time } = game;
+  const s = Math.min(unit * 0.035, w / 30);
+  const r = s * 0.95;
+  const gap = r * 2.9;
+  const y = h * 0.055 + s * 4.3;
+  const x0 = w / 2 - (gap * (total - 1)) / 2;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.beginPath();
+  ctx.roundRect(x0 - r * 1.8, y - r * 1.6, gap * (total - 1) + r * 3.6, r * 3.2, r * 1.6);
+  ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < total; i++) {
+    const n = i + 1;
+    const x = x0 + i * gap;
+    const now = n === level;
+    const k = now ? 1.25 + Math.sin(time * 5) * 0.06 + pulse * 0.5 : 1;
+    ctx.fillStyle = n < level ? COLORS.green : now ? COLORS.orange : 'rgba(61,44,46,0.15)';
+    ctx.beginPath();
+    ctx.arc(x, y, r * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = n <= level ? '#fff' : 'rgba(61,44,46,0.4)';
+    ctx.font = `800 ${Math.round(r * k * 1.25)}px system-ui, sans-serif`;
+    ctx.fillText(String(n), x, y + r * 0.08);
+  }
+  ctx.restore();
+}

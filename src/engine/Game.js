@@ -28,6 +28,7 @@ import { HighFiveScene } from '../scenes/HighFiveScene.js';
 import { RallyScene } from '../scenes/RallyScene.js';
 import { MirrorScene } from '../scenes/MirrorScene.js';
 import { TeamBalloonScene } from '../scenes/TeamBalloonScene.js';
+import { WaterScene } from '../scenes/WaterScene.js';
 
 const PALM_IDS = [0, 5, 9, 13, 17];
 const POSE_POINTERS = { lw: P.lWrist, rw: P.rWrist, li: P.lIndex, ri: P.rIndex };
@@ -38,6 +39,13 @@ const GUIDE_MIN_TIME = 4000; // 놀이 설명을 최소한 보여 주는 시간(
 const MOTION_W = 64;
 const MOTION_H = 48;
 const MOTION_PIXEL_DIFF = 32; // 이 이상 밝기가 바뀐 픽셀을 '움직임'으로 본다
+// 빠른 동작 보완: 움직임이 흐려져 인식을 잠깐 놓쳐도 바로 사라지지 않게 이어 간다.
+const HAND_COAST = 0.25; // 놓친 손을 움직이던 방향으로 이어 가는 시간(초)
+const HAND_COAST_MOVE = 0.12; // 이어 갈 때 앞으로 밀어 주는 최대 시간(초) — 너무 멀리 날아가지 않게
+const PERSON_COAST = 0.6; // 놓친 아이를 마지막 자세로 기억하는 시간(초) — 점프 기준 높이 등이 초기화되지 않게
+const HAND_MATCH = 0.4; // 이 거리(화면 짧은 변 배) 안이면 같은 손으로 본다
+const PERSON_MATCH = 0.45;
+const SWEEP_KEEP = 0.25; // 지난 위치를 이 시간 안에 본 손만 '지나간 길' 판정에 쓴다
 
 // 카메라 → 인식(손 또는 몸) → 장면 업데이트 → 그리기를 매 프레임 반복하는 게임 루프.
 // 장면은 tracker('hands' | 'pose'), needsMotion, showAvatar, hideTrail, hideCursor 속성으로 필요한 것을 알린다.
@@ -54,7 +62,8 @@ export class Game {
     this.hands = [];
     this.people = []; // 몸 인식된 아이들 [{ id, pose, center }]
     this.nextPersonId = 0;
-    this.trails = [];
+    this.nextHandId = 0;
+    this.lastPointers = new Map(); // 포인터 key → 지난 위치(빠른 손짓 판정용)
     this.mouse = null;
     this.lastVideoTime = -1;
     this.lastDetectTs = 0;
@@ -103,6 +112,7 @@ export class Game {
       rally: new RallyScene(this),
       mirror: new MirrorScene(this),
       team: new TeamBalloonScene(this),
+      water: new WaterScene(this),
       sound: new SoundScene(this),
       instrument: new InstrumentScene(this),
       drawing: new DrawingScene(this),
@@ -146,8 +156,8 @@ export class Game {
     this.scene = this.scenes[name];
     this.particles.clear();
     this.hands = [];
-    this.trails = [];
     this.people = [];
+    this.lastPointers.clear();
     this.motion = 0;
     this.motionPrev = null;
     this.absentTime = 0;
@@ -293,7 +303,7 @@ export class Game {
       return;
     }
 
-    this.hands = (result.landmarks ?? []).map((lms) => {
+    const raw = (result.landmarks ?? []).map((lms) => {
       const points = lms.map((l) => this.toScreen(l));
       const palm = { x: 0, y: 0 };
       for (const i of PALM_IDS) {
@@ -302,36 +312,62 @@ export class Game {
       }
       return { points, tip: points[8], palm };
     });
-    this.trails.length = this.hands.length;
-    this.hands.forEach((hand, i) => {
-      const trail = (this.trails[i] ??= []);
-      trail.push(hand.tip);
-      if (trail.length > TRAIL_LENGTH) trail.shift();
-    });
+    this.trackHands(raw);
   }
 
-  // 인식 결과의 순서는 프레임마다 바뀔 수 있으므로, 직전 프레임에서 가장 가까이 있던 아이와 같은 id 를 붙인다.
+  // 인식 결과의 순서는 프레임마다 바뀌므로, 직전 프레임에서 가장 가까웠던 손과 같은 id 를 붙인다.
+  // (두 아이의 손 네 개가 섞여도 그리던 선·악기 소리가 다른 손으로 넘어가지 않게)
+  // 빠르게 움직여 잠깐 놓친 손은 움직이던 방향으로 조금 이어 가서 끊기지 않게 한다.
+  trackHands(raw) {
+    const t = this.time;
+    const prev = this.hands;
+    const match = matchNearest(raw, prev, (h, p) => dist(h.palm, p.palm), this.unit * HAND_MATCH);
+    const hands = raw.map((h, i) => {
+      const p = prev[match.get(i)];
+      const gap = p ? Math.max(1 / 60, t - p.seen) : 1;
+      const vel = p ? { x: (h.palm.x - p.real.palm.x) / gap, y: (h.palm.y - p.real.palm.y) / gap } : { x: 0, y: 0 };
+      const trail = p?.trail ?? [];
+      trail.push(h.tip);
+      if (trail.length > TRAIL_LENGTH) trail.shift();
+      return { ...h, id: p ? p.id : this.nextHandId++, real: h, vel, seen: t, trail, lost: false };
+    });
+    const matched = new Set(match.values());
+    prev.forEach((p, j) => {
+      if (matched.has(j) || t - p.seen > HAND_COAST) return;
+      const k = Math.min(t - p.seen, HAND_COAST_MOVE);
+      let ox = p.vel.x * k;
+      let oy = p.vel.y * k;
+      const len = Math.hypot(ox, oy);
+      const max = this.unit * 0.15;
+      if (len > max) {
+        ox *= max / len;
+        oy *= max / len;
+      }
+      const move = (q) => ({ x: q.x + ox, y: q.y + oy });
+      const points = p.real.points.map(move);
+      hands.push({ ...p, points, tip: points[8], palm: move(p.real.palm), lost: true });
+    });
+    this.hands = dropExtraLost(hands, 4);
+  }
+
+  // 아이마다 직전 프레임에서 가장 가까웠던 아이와 같은 id 를 붙인다.
   // 장면은 이 id 로 아이마다 따로 동작 상태(점프 기준 높이 등)를 기억한다.
+  // 점프·달리기처럼 빠르게 움직이다 잠깐 놓친 아이는 마지막 자세로 기억해 두어 상태가 초기화되지 않게 한다.
   trackPeople(poses) {
+    const t = this.time;
     const prev = this.people;
-    const used = new Set();
-    this.people = poses
-      .map((pose) => {
-        const center = bodyCenter(pose);
-        let best = null;
-        let bestDist = this.unit * 0.35;
-        for (const p of prev) {
-          const d = Math.hypot(p.center.x - center.x, p.center.y - center.y);
-          if (!used.has(p.id) && d < bestDist) {
-            best = p;
-            bestDist = d;
-          }
-        }
-        const id = best ? best.id : this.nextPersonId++;
-        used.add(id);
-        return { id, pose, center };
-      })
-      .sort((a, b) => a.id - b.id);
+    const centers = poses.map((pose) => bodyCenter(pose));
+    const match = matchNearest(centers, prev, (c, p) => dist(c, p.center), this.unit * PERSON_MATCH);
+    const people = poses.map((pose, i) => {
+      const p = prev[match.get(i)];
+      return { id: p ? p.id : this.nextPersonId++, pose, center: centers[i], seen: t, lost: false };
+    });
+    const matched = new Set(match.values());
+    prev.forEach((p, j) => {
+      if (!matched.has(j) && t - p.seen <= PERSON_COAST) people.push({ ...p, lost: true });
+    });
+    // 놓쳤던 아이가 멀리서 새로 잡히면 기억해 둔 모습은 버린다(아이는 최대 두 명).
+    this.people = dropExtraLost(people, 2).sort((a, b) => a.id - b.id);
   }
 
   // 프레임 차이(Frame Difference): 직전 프레임과 비교해 밝기가 바뀐 픽셀 비율(0~1)
@@ -363,20 +399,34 @@ export class Game {
 
   buildInput() {
     const pointers = [];
-    this.hands.forEach((hand, i) => {
+    for (const hand of this.hands) {
       const parts = { tip: hand.tip, palm: hand.palm, thumb: hand.points[4], middle: hand.points[12] };
       for (const [name, p] of Object.entries(parts)) {
-        if (this.inZone(p)) pointers.push({ x: p.x, y: p.y, key: `h${i}-${name}`, part: name });
+        if (this.inZone(p)) pointers.push({ x: p.x, y: p.y, key: `h${hand.id}-${name}`, part: name });
       }
-    });
+    }
     for (const person of this.people) {
+      if (person.lost) continue; // 놓친 아이의 멈춘 손으로 잘못 닿지 않게
       for (const [name, idx] of Object.entries(POSE_POINTERS)) {
         const p = person.pose[idx];
-        if (visible(p) && this.inZone(p)) pointers.push({ x: p.x, y: p.y, key: `p${person.id}-${name}`, part: 'tip' });
+        // 빠르게 움직이면 흐려져서 확신도가 떨어지므로 손 위치는 기준을 조금 낮춰 받는다.
+        if (visible(p, 0.35) && this.inZone(p)) pointers.push({ x: p.x, y: p.y, key: `p${person.id}-${name}`, part: 'tip' });
       }
     }
     const mouseActive = this.mouse && (this.mouse.touch || this.time - this.mouse.t < MOUSE_IDLE);
     if (mouseActive) pointers.push({ x: this.mouse.x, y: this.mouse.y, key: 'mouse', part: 'tip' });
+    // 지난 위치를 붙여 두면 장면이 '지나간 길'로 닿았는지 판정할 수 있다(hit.js).
+    const seen = new Map();
+    for (const p of pointers) {
+      const last = this.lastPointers.get(p.key);
+      if (last && this.time - last.t < SWEEP_KEEP && Math.hypot(p.x - last.x, p.y - last.y) < this.unit * 0.6) {
+        p.px = last.x;
+        p.py = last.y;
+      }
+      seen.set(p.key, { x: p.x, y: p.y, t: this.time });
+    }
+    for (const [key, last] of this.lastPointers) if (!seen.has(key) && this.time - last.t < SWEEP_KEEP) seen.set(key, last);
+    this.lastPointers = seen;
     return {
       hands: this.hands,
       people: this.people, // [{ id, pose }] 최대 2명
@@ -472,7 +522,7 @@ export class Game {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (!this.scene.hideTrail) {
-      for (const trail of this.trails) {
+      for (const { trail } of this.hands) {
         for (let i = 1; i < trail.length; i++) {
           const k = i / trail.length;
           ctx.strokeStyle = `hsla(${(this.time * 240 + i * 25) % 360}, 95%, 62%, ${k * 0.9})`;
@@ -520,4 +570,33 @@ export class Game {
     const s = unit * 0.22 * (1 + Math.sin(this.time * 3) * 0.06);
     childSilhouette(ctx, w / 2, h / 2, s, 'rgba(58,134,255,0.85)');
   }
+}
+
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+// 새로 인식된 것(items)과 직전 것(prev)을 가까운 쌍부터 짝짓는다. 반환: items 번호 → prev 번호
+function matchNearest(items, prev, distance, maxDist) {
+  const pairs = [];
+  items.forEach((a, i) =>
+    prev.forEach((b, j) => {
+      const d = distance(a, b);
+      if (d < maxDist) pairs.push({ i, j, d });
+    }),
+  );
+  pairs.sort((a, b) => a.d - b.d);
+  const match = new Map();
+  const used = new Set();
+  for (const { i, j } of pairs) {
+    if (match.has(i) || used.has(j)) continue;
+    match.set(i, j);
+    used.add(j);
+  }
+  return match;
+}
+
+// 실제로 보이는 것을 우선하고, 넘치는 만큼 '놓쳐서 기억만 하는' 것을 버린다.
+function dropExtraLost(list, max) {
+  const out = [...list];
+  for (let i = out.length - 1; i >= 0 && out.length > max; i--) if (out[i].lost) out.splice(i, 1);
+  return out;
 }

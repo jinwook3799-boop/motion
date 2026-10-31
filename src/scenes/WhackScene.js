@@ -1,19 +1,26 @@
 import { HoverButton } from '../engine/HoverButton.js';
 import { playIcon, COLORS, RAINBOW } from '../engine/draw.js';
 import { mole } from '../engine/animals.js';
-import { hammer, starGauge } from '../engine/icons.js';
+import { hammer, levelSteps, starGauge } from '../engine/icons.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
+import { touches } from '../engine/hit.js';
 
-const GOAL = 10;
+const GOAL = 10; // 한 단계에서 잡을 두더지 수
 const COLS = 3;
 const ROWS = 2;
 const RISE = 0.18; // 올라오는 시간(초)
 const SINK = 0.25; // 내려가는 시간(초)
 const DIZZY = 0.6; // 맞고 어지러워하는 시간(초)
-// 두더지가 나와 있는 시간(초): 처음엔 느긋하게, 잡을수록 조금씩 짧아진다
-const STAY_START = 2.0;
-const STAY_MIN = 1.2;
+// 단계별 난이도: 10마리를 잡으면 다음 단계로, 갈수록 두더지가 빨리 숨고 자주·여러 마리 나온다.
+// stay: 나와 있는 시간(초), gap: 다음 두더지까지 시간(초) 범위, max: 동시에 나오는 수
+const LEVELS = [
+  { stay: 2.2, gap: [0.6, 1.1], max: 1 },
+  { stay: 1.8, gap: [0.5, 0.9], max: 1 },
+  { stay: 1.5, gap: [0.45, 0.8], max: 2 },
+  { stay: 1.25, gap: [0.35, 0.7], max: 2 },
+  { stay: 1.0, gap: [0.3, 0.6], max: 3 },
+];
 
 // 두더지 잡기
 export class WhackScene {
@@ -39,6 +46,8 @@ export class WhackScene {
   enter() {
     this.state = 'ready';
     this.score = 0;
+    this.level = 1;
+    this.levelPulse = 0;
     this.t = 0;
     this.lastHit = -1;
     this.hammers = [];
@@ -51,7 +60,11 @@ export class WhackScene {
     this.state = 'play';
     this.spawnT = 0.6;
     sfx.select();
-    speak('시작!');
+    speak(this.level === 1 ? '1단계, 시작!' : '시작!');
+  }
+
+  get cfg() {
+    return LEVELS[this.level - 1];
   }
 
   onTap(x, y) {
@@ -71,6 +84,7 @@ export class WhackScene {
 
   update(dt, input) {
     this.t += dt;
+    this.levelPulse = Math.max(0, this.levelPulse - dt * 1.5);
     for (let i = 0; i < GOAL; i++) this.slotPulse[i] = Math.max(0, this.slotPulse[i] - dt * 2.5);
     this.hammers = input.hands.map((hand) => hand.palm);
     const mouse = input.pointers.find((p) => p.key === 'mouse');
@@ -85,14 +99,11 @@ export class WhackScene {
       this.stateT -= dt;
       this.fireT -= dt;
       if (this.fireT <= 0) this.firework();
-      if (this.stateT <= 0) {
-        this.score = 0;
-        this.state = 'play';
-      }
+      if (this.stateT <= 0) this.nextLevel();
     } else {
       this.spawnT -= dt;
       const active = this.holes.filter((h) => h.mole).length;
-      if (this.spawnT <= 0 && active < (this.score >= 5 ? 2 : 1)) this.spawn(input.pointers);
+      if (this.spawnT <= 0 && active < this.cfg.max) this.spawn(input.pointers);
     }
 
     for (const hole of this.holes) {
@@ -112,7 +123,7 @@ export class WhackScene {
       if (!m || !(m.state === 'up' || (m.state === 'rise' && m.t > 0.08))) continue;
       const my = this.moleY(hole, this.upAmount(m));
       const reach = this.r * 0.75 * 1.1 + pad;
-      if (input.pointers.some((p) => Math.hypot(p.x - hole.x, p.y - my) < reach)) this.hit(hole, my);
+      if (input.pointers.some((p) => touches(p, hole.x, my, reach))) this.hit(hole, my);
     }
   }
 
@@ -121,9 +132,9 @@ export class WhackScene {
     const free = this.holes.filter((h) => !h.mole && !pointers.some((p) => Math.hypot(p.x - h.x, p.y - h.y) < this.r * 1.4));
     if (!free.length) return;
     const hole = free[(Math.random() * free.length) | 0];
-    const stay = Math.max(STAY_MIN, STAY_START - this.score * 0.08);
+    const { stay, gap } = this.cfg;
     hole.mole = { state: 'rise', t: 0, stay };
-    this.spawnT = 0.4 + Math.random() * 0.5;
+    this.spawnT = gap[0] + Math.random() * (gap[1] - gap[0]);
     sfx.peek();
   }
 
@@ -138,12 +149,27 @@ export class WhackScene {
     this.slotPulse[this.score] = 1;
     this.score++;
     if (this.score >= GOAL) {
+      // 한 단계 성공: 축하하고 다음 단계로. 5단계까지 모두 하면 크게 축하하고 처음부터 다시.
+      const last = this.level >= LEVELS.length;
       this.state = 'celebrate';
-      this.stateT = 3.5;
+      this.stateT = last ? 5 : 3;
       this.fireT = 0;
       sfx.fanfare();
-      speak('두더지 잡기 대장! 최고예요!');
+      speak(last ? '5단계까지 모두 성공! 두더지 잡기 대장이에요!' : `와! ${this.level + 1}단계! 조금 더 빨라져요!`);
     }
+  }
+
+  nextLevel() {
+    this.score = 0;
+    this.levelPulse = 1;
+    if (this.level >= LEVELS.length) {
+      this.level = 1;
+      this.state = 'ready';
+      return;
+    }
+    this.level++;
+    this.state = 'play';
+    this.spawnT = 0.6;
   }
 
   firework() {
@@ -188,5 +214,6 @@ export class WhackScene {
     for (const p of this.hammers) hammer(ctx, p.x, p.y, this.game.unit * 0.07, swing);
 
     starGauge(ctx, this.game, GOAL, this.score, this.slotPulse);
+    levelSteps(ctx, this.game, this.level, LEVELS.length, this.levelPulse);
   }
 }

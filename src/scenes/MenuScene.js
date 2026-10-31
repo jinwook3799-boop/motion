@@ -1,7 +1,7 @@
 import { HoverButton } from '../engine/HoverButton.js';
 import { balloon, drum, star, COLORS, RAINBOW } from '../engine/draw.js';
 import { frog, lion, mole, rabbit } from '../engine/animals.js';
-import { log, poseKid, train } from '../engine/scenery.js';
+import { campfire, log, poseKid, train, waterGun } from '../engine/scenery.js';
 import { heart, homeIcon, magnifier, rainbowIcon, trafficLight } from '../engine/icons.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
@@ -136,6 +136,19 @@ function mirrorIcon(ctx, r, t) {
   ctx.setLineDash([]);
 }
 
+// 물총과 모닥불
+function waterIcon(ctx, r, t) {
+  campfire(ctx, r * 0.28, -r * 0.05, r * 0.28, t);
+  waterGun(ctx, -r * 0.42, r * 0.3, r * 0.3, -0.5, COLORS.blue);
+  ctx.fillStyle = '#4CC9F0';
+  for (let i = 0; i < 3; i++) {
+    const k = ((t * 1.5 + i / 3) % 1);
+    ctx.beginPath();
+    ctx.arc(-r * 0.1 + k * r * 0.35, r * 0.12 - k * r * 0.2, r * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function teamIcon(ctx, r) {
   balloon(ctx, -r * 0.25, -r * 0.2, r * 0.25, COLORS.blue);
   balloon(ctx, r * 0.25, -r * 0.2, r * 0.25, COLORS.red);
@@ -158,6 +171,7 @@ const GAMES = {
   rally: { name: '공 주고받기!', color: COLORS.red, icon: rallyIcon },
   mirror: { name: '거울 놀이!', color: COLORS.purple, icon: mirrorIcon },
   team: { name: '색깔 팀 풍선!', color: COLORS.blue, icon: teamIcon },
+  water: { name: '물총 소방관!', color: '#4CC9F0', icon: waterIcon },
   math: { name: '숫자 놀이!', color: COLORS.orange, icon: textIcon('1+2', COLORS.orange) },
   hangul: { name: '한글 놀이!', color: COLORS.green, icon: textIcon('가', COLORS.green) },
   alphabet: { name: '알파벳 놀이!', color: COLORS.pink, icon: textIcon('ABC', COLORS.pink) },
@@ -167,7 +181,7 @@ const GAMES = {
 const CATEGORIES = [
   { name: '손 놀이!', color: COLORS.red, icon: handIcon, games: ['balloon', 'whack', 'sound', 'instrument', 'drawing', 'hidden'] },
   { name: '몸 놀이!', color: COLORS.green, icon: (ctx, r, t) => poseKid(ctx, 0, r * 0.12, r * 0.3, 'star', t), games: ['mimic', 'traffic', 'runner', 'train', 'pose', 'stars'] },
-  { name: '함께 놀이!', color: COLORS.pink, icon: togetherIcon, games: ['highfive', 'rally', 'mirror', 'team'] },
+  { name: '함께 놀이!', color: COLORS.pink, icon: togetherIcon, games: ['highfive', 'rally', 'mirror', 'team', 'water'] },
   { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet'] },
 ];
 

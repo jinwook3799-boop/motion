@@ -191,3 +191,61 @@ export function kid(ctx, x, y, s, shape) {
   if (shape.front) arms();
   ctx.restore();
 }
+
+// 모닥불: 장작 위에서 일렁이는 불꽃. k(0~1) = 불의 크기(물을 맞을수록 작아진다)
+export function campfire(ctx, x, y, r, t, k = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  // 장작
+  ctx.lineCap = 'round';
+  ctx.lineWidth = r * 0.22;
+  ctx.strokeStyle = '#8B5E3C';
+  for (const a of [-0.35, 0.35]) {
+    ctx.beginPath();
+    ctx.moveTo(-Math.cos(a) * r * 0.75, r * 0.55 + Math.sin(a) * r * 0.25);
+    ctx.lineTo(Math.cos(a) * r * 0.75, r * 0.55 - Math.sin(a) * r * 0.25);
+    ctx.stroke();
+  }
+  // 불꽃 세 겹(빨강 → 주황 → 노랑), 시간에 따라 일렁인다
+  const layers = [
+    ['#FF595E', 1],
+    ['#FF924C', 0.72],
+    ['#FFD23F', 0.45],
+  ];
+  for (const [color, size] of layers) {
+    const h = r * 1.5 * size * k * (1 + Math.sin(t * 9 + size * 5) * 0.07);
+    const w = r * 0.75 * size * Math.max(0.35, k);
+    const sway = Math.sin(t * 6 + size * 3) * w * 0.25;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.45);
+    ctx.bezierCurveTo(-w * 1.3, r * 0.4, -w * 0.7, r * 0.45 - h * 0.6, sway, r * 0.45 - h);
+    ctx.bezierCurveTo(w * 0.7, r * 0.45 - h * 0.6, w * 1.3, r * 0.4, 0, r * 0.45);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// 장난감 물총. (x, y) = 손잡이(손) 위치, angle = 쏘는 방향
+export function waterGun(ctx, x, y, s, angle, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  if (Math.cos(angle) < 0) ctx.scale(1, -1); // 왼쪽을 겨눠도 손잡이가 아래로 오게
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.35, -s * 0.32, s * 1.15, s * 0.42, s * 0.18); // 몸통
+  ctx.fill();
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.3, -s * 0.05, s * 0.28, s * 0.55, s * 0.1); // 손잡이
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.roundRect(s * 0.75, -s * 0.2, s * 0.35, s * 0.18, s * 0.06); // 총구
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(s * 0.15, -s * 0.38, s * 0.16, 0, Math.PI * 2); // 물통
+  ctx.fill();
+  ctx.restore();
+}

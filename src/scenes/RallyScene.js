@@ -3,6 +3,7 @@ import { starGauge } from '../engine/icons.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
 import { firework, PLAYER_COLORS } from './common.js';
+import { touches } from '../engine/hit.js';
 
 const GOAL = 10; // 이만큼 주고받으면 축하
 const GRAVITY = 0.45; // 놀이 영역 높이/초² — 비치볼처럼 둥실둥실
@@ -91,7 +92,7 @@ export class RallyScene {
     if (b.y < z.y + r) Object.assign(b, { y: z.y + r, vy: Math.abs(b.vy) * 0.5 });
 
     const pad = this.game.unit * 0.03;
-    if (time - b.lastHit > HIT_COOLDOWN && input.pointers.some((p) => Math.hypot(p.x - b.x, p.y - b.y) < r + pad)) this.hit();
+    if (time - b.lastHit > HIT_COOLDOWN && input.pointers.some((p) => touches(p, b.x, b.y, r + pad))) this.hit();
 
     if (b.y - r > z.y + z.h) this.drop();
   }

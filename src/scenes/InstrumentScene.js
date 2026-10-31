@@ -1,6 +1,7 @@
 import { cymbal, drum, roundRect, COLORS } from '../engine/draw.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
+import { sweepPoints } from '../engine/hit.js';
 
 // 위에서 아래로: 높은 음 → 낮은 음 (C 펜타토닉)
 const XYLO_NOTES = [880, 783.99, 659.25, 587.33, 523.25];
@@ -49,9 +50,17 @@ export class InstrumentScene {
     const seen = new Map();
     for (const p of input.pointers) {
       if (!STRIKE_PARTS.has(p.part)) continue;
-      const target = this.targetAt(p);
-      if (target && target !== this.prevTargets.get(p.key)) this.strike(target, p);
-      seen.set(p.key, target);
+      // 빠르게 내려치면 두 프레임 사이에 악기를 지나칠 수 있어, 지나간 길 위의 점들도 확인한다.
+      const prev = this.prevTargets.get(p.key);
+      let target = null;
+      for (const q of sweepPoints(p, this.game.unit * 0.03)) {
+        target = this.targetAt(q);
+        if (target && target !== prev) {
+          this.strike(target, p);
+          break;
+        }
+      }
+      seen.set(p.key, this.targetAt(p));
     }
     this.prevTargets = seen;
 

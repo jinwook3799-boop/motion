@@ -166,6 +166,22 @@ export const sfx = {
     if (!ready()) return;
     noise({ dur: 0.35, gain: 0.2, freq: 1200, q: 0.6, attack: 0.12 });
   },
+  // 물총 "쉬익"(쏘는 동안 짧게 반복)
+  spray() {
+    if (!ready()) return;
+    noise({ dur: 0.12, gain: 0.07, filter: 'highpass', freq: 3000, attack: 0.02 });
+  },
+  // 물이 불에 닿을 때 "치익"
+  sizzle() {
+    if (!ready()) return;
+    noise({ dur: 0.1, gain: 0.08, filter: 'bandpass', freq: 5000, q: 1.5 });
+  },
+  // 불이 꺼질 때 "푸슉~"
+  douse() {
+    if (!ready()) return;
+    noise({ dur: 0.6, gain: 0.25, filter: 'lowpass', freq: 1800, attack: 0.01 });
+    tone({ freq: 700, freqEnd: 1400, start: 0.15, dur: 0.2, gain: 0.15 });
+  },
 };
 
 // 녹음된 소리(동물 울음소리 등). 앞뒤 무음을 잘라 내고 크기를 맞춰 재생한다.

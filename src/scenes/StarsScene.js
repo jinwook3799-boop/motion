@@ -4,6 +4,7 @@ import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
 import { pick } from '../engine/util.js';
 import { firework } from './common.js';
+import { touches } from '../engine/hit.js';
 
 const GOAL = 10;
 const HINT_AFTER = 9; // 이 시간(초) 안에 못 잡으면 어떻게 잡는지 알려 준다
@@ -90,7 +91,7 @@ export class StarsScene {
 
     this.star.age += dt;
     const p = this.starPos();
-    if (input.pointers.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < p.r * 1.5)) return this.catch();
+    if (input.pointers.some((q) => touches(q, p.x, p.y, p.r * 1.5))) return this.catch();
     if (this.star.age > HINT_AFTER && !this.hinted) {
       this.hinted = true;
       this.after(speak(this.star.spot.kind === 'up' ? '손을 하늘 높이 쭉 뻗어 봐요!' : '옆으로 걸어가서 잡아 봐요!'), () => {});

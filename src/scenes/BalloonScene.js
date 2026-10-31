@@ -2,9 +2,21 @@ import { HoverButton } from '../engine/HoverButton.js';
 import { balloon, monster, playIcon, star, COLORS, RAINBOW } from '../engine/draw.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
+import { touches } from '../engine/hit.js';
+import { levelSteps } from '../engine/icons.js';
 
-const GOAL = 10; // 별 게이지 칸 수
-const MAX_ITEMS = 6;
+const GOAL = 10; // 한 단계에서 채울 별 수
+// 단계별 난이도: 별 10개를 채우면 다음 단계로, 갈수록 풍선이 빨리 올라가고 자주 나온다.
+// rise: 풍선이 올라가는 속도(화면 높이 배/초) 범위, gap: 다음 풍선까지 시간(초) 범위,
+// monster: 괴물이 머무는 시간(초), max: 화면에 동시에 있을 수 있는 수
+const LEVELS = [
+  { rise: [0.1, 0.15], gap: [0.9, 1.5], monster: 4.5, max: 5 },
+  { rise: [0.13, 0.19], gap: [0.8, 1.3], monster: 4, max: 6 },
+  { rise: [0.16, 0.23], gap: [0.65, 1.1], monster: 3.5, max: 6 },
+  { rise: [0.2, 0.28], gap: [0.55, 0.95], monster: 3, max: 7 },
+  { rise: [0.24, 0.33], gap: [0.45, 0.8], monster: 2.5, max: 8 },
+];
+const between = ([a, b]) => a + Math.random() * (b - a);
 const MONSTER_CHANCE = 0.22;
 const BALLOON_COLORS = [COLORS.red, COLORS.orange, COLORS.yellow, COLORS.green, COLORS.blue, COLORS.pink];
 const MONSTER_COLORS = [COLORS.purple, COLORS.green, COLORS.blue];
@@ -28,6 +40,8 @@ export class BalloonScene {
     this.state = 'ready';
     this.items = [];
     this.score = 0;
+    this.level = 1;
+    this.levelPulse = 0;
     this.spawnT = 0;
     this.slotPulse = new Array(GOAL).fill(0);
     speak('가운데 동그라미에 손을 올리면 시작해요!');
@@ -37,7 +51,11 @@ export class BalloonScene {
     this.state = 'play';
     this.spawnT = 0.3;
     sfx.select();
-    speak('시작!');
+    speak(this.level === 1 ? '1단계, 시작!' : '시작!');
+  }
+
+  get cfg() {
+    return LEVELS[this.level - 1];
   }
 
   onTap(x, y) {
@@ -45,6 +63,7 @@ export class BalloonScene {
   }
 
   update(dt, input) {
+    this.levelPulse = Math.max(0, this.levelPulse - dt * 1.5);
     if (this.state === 'ready') {
       this.startButton.update(dt, input.pointers);
       return;
@@ -57,15 +76,12 @@ export class BalloonScene {
         this.fireworkT = 0.35;
         this.firework();
       }
-      if (this.celebrateT <= 0) {
-        this.score = 0;
-        this.state = 'play';
-      }
+      if (this.celebrateT <= 0) this.nextLevel();
     } else {
       this.spawnT -= dt;
-      if (this.spawnT <= 0 && this.items.length < MAX_ITEMS) {
+      if (this.spawnT <= 0 && this.items.length < this.cfg.max) {
         this.spawn();
-        this.spawnT = 0.7 + Math.random() * 0.6;
+        this.spawnT = between(this.cfg.gap);
       }
     }
 
@@ -86,7 +102,7 @@ export class BalloonScene {
     for (const p of input.pointers) {
       for (const it of this.items) {
         if (it.gone) continue;
-        if (Math.hypot(p.x - it.x, p.y - it.y) < it.r * 1.2 + pad) this.popItem(it);
+        if (touches(p, it.x, it.y, it.r * 1.2 + pad)) this.popItem(it);
       }
     }
     this.items = this.items.filter((it) => !it.gone);
@@ -106,7 +122,7 @@ export class BalloonScene {
         r: r * 1.1,
         color: pick(MONSTER_COLORS),
         age: 0,
-        life: 4,
+        life: this.cfg.monster,
       });
     } else {
       const baseX = z.x + r * 1.3 + Math.random() * (z.w - r * 2.6);
@@ -116,7 +132,7 @@ export class BalloonScene {
         x: baseX,
         y: z.y + z.h + r,
         r,
-        speed: this.game.h * (0.12 + Math.random() * 0.08),
+        speed: this.game.h * between(this.cfg.rise),
         color: pick(BALLOON_COLORS),
         wobbleF: 1.5 + Math.random(),
         wobbleA: r * 0.3,
@@ -145,12 +161,28 @@ export class BalloonScene {
     if (this.score >= GOAL) this.celebrate();
   }
 
+  // 한 단계 성공: 축하하고 다음 단계로. 5단계까지 모두 하면 크게 축하하고 처음부터 다시.
   celebrate() {
+    const last = this.level >= LEVELS.length;
     this.state = 'celebrate';
-    this.celebrateT = 3.5;
+    this.celebrateT = last ? 5 : 3;
     this.fireworkT = 0;
     sfx.fanfare();
-    speak('와! 참 잘했어요!');
+    speak(last ? '5단계까지 모두 성공! 풍선 대장이에요!' : `와! ${this.level + 1}단계! 조금 더 빨라져요!`);
+  }
+
+  nextLevel() {
+    this.score = 0;
+    this.levelPulse = 1;
+    if (this.level >= LEVELS.length) {
+      this.level = 1;
+      this.items = [];
+      this.state = 'ready';
+      return;
+    }
+    this.level++;
+    this.state = 'play';
+    this.spawnT = 0.5;
   }
 
   firework() {
@@ -184,6 +216,7 @@ export class BalloonScene {
       }
     }
     this.drawGauge(ctx);
+    levelSteps(ctx, this.game, this.level, LEVELS.length, this.levelPulse);
   }
 
   drawGauge(ctx) {

@@ -9,7 +9,7 @@ const FADE = 1.5; // 사라지기 전 반짝이는 시간(초)
 // 손을 내리거나 화면 밖으로 빼면 멈춘다.
 const SMOOTHING = 0.5; // 낮을수록 떨림이 줄지만 선이 늦게 따라온다
 const BRIDGE_TIME = 0.4; // 손을 이만큼(초) 잠깐 놓쳐도 근처에서 다시 잡히면 선을 이어 그린다
-const RECONNECT = 0.25; // 이어 그릴 수 있는 최대 거리(화면 짧은 변 대비)
+const RECONNECT = 0.35; // 이어 그릴 수 있는 최대 거리(화면 짧은 변 대비)
 const DROPS = [
   { color: 'rainbow', name: '무지개!' },
   { color: COLORS.red, name: '빨강!' },
@@ -66,7 +66,8 @@ export class DrawingScene {
   // 손마다 펜 하나: 손바닥 중심(떨림 보정). 물방울 판정용으로 손끝도 함께 둔다.
   readPens(input) {
     const unit = this.game.unit;
-    const pens = input.hands.map((hand, i) => ({ key: `h${i}`, x: hand.palm.x, y: hand.palm.y, tip: hand.tip }));
+    // 손마다 고유 id 로 펜을 구분해 두 아이가 함께 그려도 선이 섞이지 않는다. 잠깐 놓친 손(lost)은 선을 잇지 않는다.
+    const pens = input.hands.filter((h) => !h.lost).map((hand) => ({ key: `h${hand.id}`, x: hand.palm.x, y: hand.palm.y, tip: hand.tip }));
     const mouse = input.pointers.find((p) => p.key === 'mouse');
     if (mouse) pens.push({ key: 'mouse', x: mouse.x, y: mouse.y, tip: mouse });
 

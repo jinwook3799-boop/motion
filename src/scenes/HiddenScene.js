@@ -42,8 +42,8 @@ export class HiddenScene {
   enter() {
     this.active = true;
     this.token = 0;
-    this.trail = [];
-    this.pen = null;
+    this.trails = new Map(); // 펜 key → 동그라미 궤적(두 아이가 각자 그린다)
+    this.pens = [];
     this.pulse = new Array(FIND_COUNT).fill(0);
     this.firstAsk = true;
     this.newPicture();
@@ -90,7 +90,7 @@ export class HiddenScene {
   askTarget() {
     this.searchT = 0;
     this.hinted = false;
-    this.trail = [];
+    this.trails.clear();
     const name = josa(THINGS[this.target.id].name, '을', '를');
     const text = this.firstAsk ? `${name} 찾아보세요!` : `이번에는 ${name} 찾아보세요!`;
     this.firstAsk = false;
@@ -132,21 +132,27 @@ export class HiddenScene {
     }
   }
 
-  readPen(input) {
-    const hand = input.hands[0];
+  // 손마다 펜 하나(손바닥 중심, 떨림 보정). 손 id 로 구분해 두 아이의 동그라미가 섞이지 않는다.
+  readPens(input) {
+    const raws = input.hands.filter((h) => !h.lost).map((h) => ({ key: `h${h.id}`, x: h.palm.x, y: h.palm.y }));
     const mouse = input.pointers.find((p) => p.key === 'mouse');
-    const raw = hand ? hand.palm : mouse;
-    if (!raw || !this.game.inZone(raw)) return null;
-    if (this.pen && Math.hypot(raw.x - this.pen.x, raw.y - this.pen.y) < this.game.unit * 0.25) {
-      return { x: this.pen.x + (raw.x - this.pen.x) * SMOOTHING, y: this.pen.y + (raw.y - this.pen.y) * SMOOTHING };
-    }
-    return { x: raw.x, y: raw.y };
+    if (mouse) raws.push({ key: 'mouse', x: mouse.x, y: mouse.y });
+    const prev = new Map(this.pens.map((p) => [p.key, p]));
+    return raws
+      .filter((raw) => this.game.inZone(raw))
+      .map((raw) => {
+        const last = prev.get(raw.key);
+        if (last && Math.hypot(raw.x - last.x, raw.y - last.y) < this.game.unit * 0.25) {
+          return { key: raw.key, x: last.x + (raw.x - last.x) * SMOOTHING, y: last.y + (raw.y - last.y) * SMOOTHING };
+        }
+        return raw;
+      });
   }
 
   update(dt, input) {
     const now = this.game.time;
     for (let i = 0; i < FIND_COUNT; i++) this.pulse[i] = Math.max(0, this.pulse[i] - dt * 2.5);
-    this.pen = this.readPen(input);
+    this.pens = this.readPens(input);
     if (this.state !== 'search') return;
 
     this.searchT += dt;
@@ -155,32 +161,38 @@ export class HiddenScene {
       this.after(speak('반짝이는 곳을 잘 봐요!'), () => {});
     }
 
-    if (!this.pen) {
-      // 손을 잠깐 놓치는 건 괜찮지만, 오래 놓치면 그리던 동그라미를 지운다.
-      if (this.trail.length && now - this.trail.at(-1).t > 0.4) this.trail = [];
-      return;
+    // 손을 잠깐 놓치는 건 괜찮지만, 오래 놓치면 그리던 동그라미를 지운다.
+    for (const [key, trail] of this.trails) if (now - trail.at(-1).t > 0.6) this.trails.delete(key);
+
+    for (const pen of this.pens) {
+      let trail = this.trails.get(pen.key);
+      if (!trail) this.trails.set(pen.key, (trail = []));
+      const last = trail.at(-1);
+      const step = last ? Math.hypot(pen.x - last.x, pen.y - last.y) : 0;
+      if (last && step < 3) {
+        last.t = now;
+        continue;
+      }
+      trail.push({ x: pen.x, y: pen.y, t: now, len: (last?.len ?? 0) + step });
+      while (trail.length > 1 && now - trail[0].t > TRAIL_TIME) trail.shift();
+      if (this.checkLoop(trail)) return;
     }
-    const last = this.trail.at(-1);
-    const step = last ? Math.hypot(this.pen.x - last.x, this.pen.y - last.y) : 0;
-    if (last && step < 3) return;
-    this.trail.push({ x: this.pen.x, y: this.pen.y, t: now, len: (last?.len ?? 0) + step });
-    while (this.trail.length && now - this.trail[0].t > TRAIL_TIME) this.trail.shift();
-    this.checkLoop();
   }
 
   // 궤적의 끝이 앞쪽 궤적과 다시 만나면(동그라미가 닫히면) 그 안을 검사한다.
-  checkLoop() {
+  checkLoop(pts) {
     const unit = this.game.unit;
-    const pts = this.trail;
     const end = pts.at(-1);
     for (let j = 0; j < pts.length - 10; j++) {
       if (end.len - pts[j].len < unit * 0.45) break;
       if (Math.hypot(end.x - pts[j].x, end.y - pts[j].y) < unit * 0.07) {
-        this.evaluate(pts.slice(j));
-        this.trail = [];
-        return;
+        const poly = pts.slice(j);
+        this.trails.clear();
+        this.evaluate(poly);
+        return true;
       }
     }
+    return false;
   }
 
   evaluate(poly) {
@@ -261,25 +273,27 @@ export class HiddenScene {
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    for (let i = 1; i < this.trail.length; i++) {
-      const a = this.trail[i - 1];
-      const b = this.trail[i];
-      ctx.strokeStyle = `hsl(${(i * 8) % 360}, 95%, 55%)`;
-      ctx.lineWidth = unit * 0.014;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
+    for (const trail of this.trails.values()) {
+      for (let i = 1; i < trail.length; i++) {
+        const a = trail[i - 1];
+        const b = trail[i];
+        ctx.strokeStyle = `hsl(${(i * 8) % 360}, 95%, 55%)`;
+        ctx.lineWidth = unit * 0.014;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
     }
     ctx.restore();
 
     this.drawTargetPanel(ctx);
-    if (this.pen) {
+    for (const pen of this.pens) {
       ctx.fillStyle = '#fff';
       ctx.strokeStyle = COLORS.purple;
       ctx.lineWidth = unit * 0.008;
       ctx.beginPath();
-      ctx.arc(this.pen.x, this.pen.y, unit * 0.022, 0, Math.PI * 2);
+      ctx.arc(pen.x, pen.y, unit * 0.022, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }

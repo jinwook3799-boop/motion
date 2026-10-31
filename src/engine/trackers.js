@@ -4,6 +4,8 @@ const BASE = import.meta.env.BASE_URL;
 
 // 유아는 손이 작고 동작이 불분명하므로 인식 기준을 기본값(0.5)보다 낮춰 관대하게 잡는다.
 const MIN_CONFIDENCE = 0.4;
+// 이미 찾은 손·몸을 계속 따라가는 기준은 더 낮춘다. 빠르게 움직여 흐릿해진 프레임에서도 놓치지 않게.
+const MIN_TRACKING = 0.3;
 
 const factories = {
   hands: (fileset, delegate) =>
@@ -12,8 +14,8 @@ const factories = {
       runningMode: 'VIDEO',
       numHands: 4, // 아이 두 명의 양손
       minHandDetectionConfidence: MIN_CONFIDENCE,
-      minHandPresenceConfidence: MIN_CONFIDENCE,
-      minTrackingConfidence: MIN_CONFIDENCE,
+      minHandPresenceConfidence: MIN_TRACKING,
+      minTrackingConfidence: MIN_TRACKING,
     }),
   pose: (fileset, delegate) =>
     PoseLandmarker.createFromOptions(fileset, {
@@ -21,8 +23,8 @@ const factories = {
       runningMode: 'VIDEO',
       numPoses: 2, // 아이 두 명
       minPoseDetectionConfidence: MIN_CONFIDENCE,
-      minPosePresenceConfidence: MIN_CONFIDENCE,
-      minTrackingConfidence: MIN_CONFIDENCE,
+      minPosePresenceConfidence: MIN_TRACKING,
+      minTrackingConfidence: MIN_TRACKING,
     }),
 };
 

@@ -3,7 +3,7 @@
 import { balloon, drum, progressRing, star, COLORS } from './draw.js';
 import { apple, heart, speakerIcon, trafficLight } from './icons.js';
 import { frog, lion, mole } from './animals.js';
-import { flyingBird, kid, log, POSE_SHAPES } from './scenery.js';
+import { campfire, flyingBird, kid, log, POSE_SHAPES, waterGun } from './scenery.js';
 
 const REST = [[-0.7, 0.4], [0.7, 0.4]];
 const UP = [[-0.7, -1.9], [0.7, -1.9]];
@@ -72,7 +72,7 @@ function chooseDemo(ctx, s, t, labels, question) {
 
 export const GUIDES = {
   balloon: {
-    text: '손을 뻗어서 풍선을 펑펑 터뜨려요! 괴물이 나오면 콩! 쳐 주세요.',
+    text: '손을 뻗어서 풍선을 펑펑 터뜨려요! 괴물이 나오면 콩! 쳐 주세요. 잘하면 점점 빨라져요.',
     demo: (ctx, s, t) =>
       reachDemo(ctx, s, t, {
         to: [1.7, -1.4],
@@ -80,7 +80,7 @@ export const GUIDES = {
       }),
   },
   whack: {
-    text: '두더지가 쏙 나오면 손으로 콩! 쳐서 잡아요.',
+    text: '두더지가 쏙 나오면 손으로 콩! 쳐서 잡아요. 잘하면 점점 빨라져요.',
     demo: (ctx, s, t) => {
       const { k, hit, p } = reach(t, 2);
       const hx = s * 0.9;
@@ -349,6 +349,37 @@ export const GUIDES = {
       ctx.fill();
       ctx.stroke();
       if (follow === i && loop(t, 2) > 0.7) heart(ctx, 0, -s * 1.2, s * 0.45, COLORS.pink);
+    },
+  },
+  water: {
+    text: '팔을 쭉 뻗어서 불을 겨누면 물총이 슝슝 나가요! 둘이 함께 불을 꺼요.',
+    demo: (ctx, s, t) => {
+      const p = loop(t, 3.6);
+      const k = ease(Math.min(1, p / 0.2)); // 팔 들기
+      const fire = p < 0.85 ? 1 - Math.max(0, (p - 0.25) / 0.6) * 0.65 : 0;
+      const fx = 0;
+      const fy = -s * 1.5;
+      if (fire > 0) campfire(ctx, fx, fy, s * 0.7, t, fire);
+      else burst(ctx, fx, fy - s * 0.3, s * 1.6, '#4CC9F0');
+      for (const [side, color, water] of [[-1, COLORS.blue, '#4CC9F0'], [1, COLORS.pink, '#F49CC8']]) {
+        const kx = side * s * 2.6;
+        const ky = s * 0.7;
+        const aimHand = lerp2(REST[side < 0 ? 1 : 0], [-side * 1.35, -1.25], k);
+        const hands = side < 0 ? [REST[0], aimHand] : [aimHand, REST[1]];
+        kid(ctx, kx, ky, s * 0.9, { hands, color });
+        const hx = kx + aimHand[0] * s * 0.9;
+        const hy = ky + aimHand[1] * s * 0.9;
+        const angle = Math.atan2(fy - hy, fx - hx);
+        waterGun(ctx, hx, hy, s * 0.45, angle, color);
+        if (k < 1 || fire <= 0) continue;
+        ctx.fillStyle = water;
+        for (let i = 0; i < 5; i++) {
+          const q = (t * 2.5 + i / 5) % 1;
+          ctx.beginPath();
+          ctx.arc(lerp(hx, fx, q), lerp(hy, fy, q) - Math.sin(q * Math.PI) * s * 0.3, s * 0.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     },
   },
   team: {
