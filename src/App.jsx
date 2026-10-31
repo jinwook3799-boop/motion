@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Stage from './components/Stage.jsx';
 import { CameraOffIcon, PlayIcon, RetryIcon, SadCloudIcon } from './components/Icons.jsx';
 import { startCamera } from './engine/camera.js';
-import { createHandTracker } from './engine/handTracker.js';
+import { loadTracker } from './engine/trackers.js';
 import { sfx, unlockAudio } from './engine/audio.js';
 import { speak } from './engine/voice.js';
 
@@ -10,8 +10,7 @@ const DENIED_ERRORS = new Set(['NotAllowedError', 'SecurityError', 'NotFoundErro
 
 export default function App() {
   const videoRef = useRef(null);
-  const trackerRef = useRef(null);
-  const trackerPromiseRef = useRef(null);
+  const trackersRef = useRef(null);
   // start → loading → ready | denied | error
   const [phase, setPhase] = useState('start');
 
@@ -22,15 +21,12 @@ export default function App() {
     speak('안녕! 같이 놀자!');
     setPhase('loading');
 
-    trackerPromiseRef.current ??= createHandTracker().catch((err) => {
-      trackerPromiseRef.current = null;
-      throw err;
-    });
-
     try {
-      const [, tracker] = await Promise.all([startCamera(videoRef.current), trackerPromiseRef.current]);
-      trackerRef.current = tracker;
+      const [, hands] = await Promise.all([startCamera(videoRef.current), loadTracker('hands')]);
+      trackersRef.current = { hands };
       setPhase('ready');
+      // 몸 인식 모델은 몸 놀이를 고르기 전에 미리 받아 둔다.
+      loadTracker('pose').catch((err) => console.warn(err));
     } catch (err) {
       console.error(err);
       const denied = DENIED_ERRORS.has(err?.name);
@@ -45,7 +41,7 @@ export default function App() {
     <>
       <video ref={videoRef} className="camera-feed" playsInline muted />
       {phase === 'ready' ? (
-        <Stage video={videoRef.current} tracker={trackerRef.current} />
+        <Stage video={videoRef.current} trackers={trackersRef.current} />
       ) : (
         <Splash phase={phase} onStart={handleStart} />
       )}

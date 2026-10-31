@@ -8,16 +8,6 @@ export function PlayIcon() {
   );
 }
 
-export function HomeIcon() {
-  return (
-    <svg viewBox="0 0 100 100" aria-hidden="true">
-      <path d="M18 50 L50 22 L82 50" fill="none" stroke="#FF9F1C" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M28 46 V80 H72 V46" fill="#FFD23F" stroke="#FF9F1C" strokeWidth="8" strokeLinejoin="round" />
-      <rect x="43" y="58" width="14" height="22" rx="4" fill="#FF9F1C" />
-    </svg>
-  );
-}
-
 export function FullscreenIcon({ exit = false }) {
   const d = exit
     ? 'M38 20 V38 H20 M62 20 V38 H80 M38 80 V62 H20 M62 80 V62 H80'

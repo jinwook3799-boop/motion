@@ -15,15 +15,27 @@ if (supported) {
   speechSynthesis.addEventListener?.('voiceschanged', pickVoice);
 }
 
+// 말이 끝나면 resolve 되는 Promise를 돌려준다(음성이 끊기거나 이벤트가 안 와도 시간 초과로 resolve).
 export function speak(text, { interrupt = true } = {}) {
-  if (!supported) return;
+  if (!supported) return Promise.resolve();
   if (interrupt) speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ko-KR';
-  if (koVoice) u.voice = koVoice;
-  u.rate = 0.95;
-  u.pitch = 1.25;
-  speechSynthesis.speak(u);
+  return new Promise((resolve) => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ko-KR';
+    if (koVoice) u.voice = koVoice;
+    u.rate = 0.95;
+    u.pitch = 1.25;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    u.onend = finish;
+    u.onerror = finish;
+    setTimeout(finish, 1500 + text.length * 200);
+    speechSynthesis.speak(u);
+  });
 }
 
 export function stopSpeaking() {

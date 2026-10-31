@@ -1,27 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Game } from '../engine/Game.js';
-import { FullscreenIcon, HomeIcon } from './Icons.jsx';
+import { FullscreenIcon } from './Icons.jsx';
 
-export default function Stage({ video, tracker }) {
+export default function Stage({ video, trackers }) {
   const canvasRef = useRef(null);
-  const gameRef = useRef(null);
-  const [scene, setScene] = useState('menu');
 
   useEffect(() => {
-    const game = new Game({ canvas: canvasRef.current, video, tracker, onSceneChange: setScene });
-    gameRef.current = game;
+    const game = new Game({ canvas: canvasRef.current, video, trackers });
     game.start('menu');
     return () => game.destroy();
-  }, [video, tracker]);
+  }, [video, trackers]);
 
   return (
     <div className="stage">
       <canvas ref={canvasRef} />
-      {scene !== 'menu' && (
-        <button className="corner-btn left" aria-label="처음으로" onClick={() => gameRef.current?.goTo('menu')}>
-          <HomeIcon />
-        </button>
-      )}
       <FullscreenButton />
     </div>
   );

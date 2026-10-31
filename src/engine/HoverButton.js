@@ -2,9 +2,10 @@ import { progressRing } from './draw.js';
 
 // 손을 아이콘 위에 잠시 올려 두면(dwell) 눌리는 버튼. 터치/클릭으로도 바로 누를 수 있다.
 export class HoverButton {
-  constructor({ drawIcon, onActivate, ringColor = '#FFD23F', dwell = 1.0 }) {
+  constructor({ drawIcon, onActivate, onHoverStart, ringColor = '#FFD23F', dwell = 1.0 }) {
     this.drawIcon = drawIcon;
     this.onActivate = onActivate;
+    this.onHoverStart = onHoverStart;
     this.ringColor = ringColor;
     this.dwell = dwell;
     this.x = 0;
@@ -14,6 +15,10 @@ export class HoverButton {
     this.hover = false;
     this.cooldown = 0;
     this.t = 0;
+    this.disabled = false;
+    // 장면에서 꾸밈용으로 조절하는 값
+    this.boost = 1;
+    this.offsetX = 0;
   }
 
   place(x, y, r) {
@@ -29,7 +34,9 @@ export class HoverButton {
   update(dt, pointers) {
     this.t += dt;
     this.cooldown = Math.max(0, this.cooldown - dt);
-    this.hover = pointers.some((p) => this.contains(p, this.r * 0.15));
+    const wasHover = this.hover;
+    this.hover = !this.disabled && pointers.some((p) => this.contains(p, this.r * 0.15));
+    if (this.hover && !wasHover) this.onHoverStart?.();
     if (this.hover && this.cooldown === 0) {
       this.progress += dt / this.dwell;
       if (this.progress >= 1) this.activate();
@@ -39,7 +46,7 @@ export class HoverButton {
   }
 
   tap(x, y) {
-    if (!this.contains({ x, y })) return false;
+    if (this.disabled || !this.contains({ x, y })) return false;
     this.activate();
     return true;
   }
@@ -51,9 +58,9 @@ export class HoverButton {
   }
 
   draw(ctx) {
-    const s = 1 + (this.hover ? 0.08 : 0) + Math.sin(this.t * 3) * 0.03;
+    const s = (1 + (this.hover ? 0.08 : 0) + Math.sin(this.t * 3) * 0.03) * this.boost;
     ctx.save();
-    ctx.translate(this.x, this.y);
+    ctx.translate(this.x + this.offsetX, this.y);
     ctx.scale(s, s);
     ctx.fillStyle = 'rgba(0,0,0,0.08)';
     ctx.beginPath();
@@ -63,7 +70,7 @@ export class HoverButton {
     ctx.beginPath();
     ctx.arc(0, 0, this.r, 0, Math.PI * 2);
     ctx.fill();
-    this.drawIcon(ctx, this.r);
+    this.drawIcon(ctx, this.r, this.t);
     progressRing(ctx, 0, 0, this.r, this.progress, this.ringColor);
     ctx.restore();
   }
