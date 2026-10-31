@@ -1,0 +1,5 @@
+node_modules
+dist
+dev-dist
+# npm run setup 이 매번 다시 만든다
+public/mediapipe
