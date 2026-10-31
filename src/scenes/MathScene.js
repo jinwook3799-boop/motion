@@ -17,7 +17,7 @@ const LEVELS = [
 
 // 숫자 놀이: 덧셈·뺄셈
 export class MathScene extends QuizScene {
-  introText = '숫자 놀이를 해 볼까요? 잘 듣고 맞는 숫자를 골라 보세요!';
+  introText = '숫자 놀이 시작!';
   celebrateText = '숫자 박사! 정말 잘했어요!';
 
   makeQuestion() {

@@ -31,7 +31,7 @@ export class TrafficScene {
     this.score = 0;
     this.phase = 0;
     this.slotPulse = new Array(GOAL).fill(0);
-    speak('음악이 나오면 신나게 춤추고, 얼음! 하면 꽁꽁 멈춰요! 가운데 동그라미에 손을 올려 볼까요?');
+    speak('가운데 동그라미에 손을 올리면 시작해요!');
   }
 
   exit() {

@@ -2,7 +2,7 @@ import { COLORS } from '../engine/draw.js';
 import { starGauge } from '../engine/icons.js';
 import { train } from '../engine/scenery.js';
 import { THINGS } from '../engine/things.js';
-import { kneeUp, shoulders } from '../engine/pose.js';
+import { countSteps, perPerson } from '../engine/pose.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
 import { josa, pick } from '../engine/util.js';
@@ -13,7 +13,6 @@ const STEP_BOOST = 0.16; // 한 걸음마다 빨라지는 정도
 const DECAY = 0.22; // 멈추면 초당 느려지는 정도
 const MAX_TRAVEL = 0.6; // 최고 속도일 때 초당 이동 거리(놀이 영역 너비 배)
 const STATION_EVERY = 3; // 역 사이 거리(놀이 영역 너비 배)
-const BOB = 0.05; // 무릎이 안 보일 때: 어깨가 이만큼(어깨너비 배) 오르내리면 한 걸음
 const PASSENGERS = ['rabbit', 'cat', 'dog', 'duck', 'frog', 'chick', 'penguin', 'lion', 'cow'];
 
 // 칙칙폭폭 기차: 제자리에서 달리면 기차가 달리고, 역마다 동물 친구를 태운다.
@@ -46,11 +45,10 @@ export class TrainScene {
     this.waiting = null;
     this.state = 'run';
     this.idle = 0;
-    this.knees = { l: false, r: false };
-    this.bob = null;
+    this.runners = new Map(); // 아이 id → 걸음 세기 상태
     this.smokeT = 0;
     this.pulse = new Array(GOAL).fill(0);
-    this.after(speak('제자리에서 무릎을 높이 올리며 달려 보세요! 빨리 달릴수록 기차가 빨라져요!'), () => {});
+    this.after(speak('칙칙폭폭, 출발!'), () => {});
   }
 
   exit() {
@@ -62,37 +60,6 @@ export class TrainScene {
     promise.then(() => {
       if (this.active && this.token === token) fn();
     });
-  }
-
-  // 이번 프레임에 새로 내디딘 걸음 수
-  countSteps(pose) {
-    if (!pose) return 0;
-    const l = kneeUp(pose, 'l');
-    const r = kneeUp(pose, 'r');
-    let steps = 0;
-    if (l !== null && r !== null) {
-      if (l && !this.knees.l) steps++;
-      if (r && !this.knees.r) steps++;
-      this.knees = { l, r };
-      return steps;
-    }
-    // 다리가 안 보이면 어깨가 들썩이는 것으로 걸음을 센다.
-    const sh = shoulders(pose);
-    if (!sh) return 0;
-    const y = sh.my;
-    const amp = sh.sw * BOB;
-    const b = (this.bob ??= { dir: 'up', top: y, bottom: y });
-    if (b.dir === 'up') {
-      b.top = Math.min(b.top, y);
-      if (y > b.top + amp) Object.assign(b, { dir: 'down', bottom: y });
-    } else {
-      b.bottom = Math.max(b.bottom, y);
-      if (y < b.bottom - amp) {
-        Object.assign(b, { dir: 'up', top: y });
-        steps++;
-      }
-    }
-    return steps;
   }
 
   onTap() {
@@ -118,7 +85,9 @@ export class TrainScene {
     }
     if (this.state === 'station') return; // 동물이 타는 동안 기차는 멈춰 있다
 
-    const steps = this.countSteps(input.pose);
+    // 두 아이의 걸음을 모두 더한다(같이 뛰면 기차가 더 빨라진다).
+    let steps = 0;
+    for (const p of perPerson(this.runners, input.people)) steps += countSteps(p.state, p.pose);
     if (steps) sfx.chug();
     this.speed = Math.min(1, Math.max(0, this.speed + steps * STEP_BOOST - DECAY * dt));
     // 화면이 많이 움직이면(달리는 중) 최소 속도를 보장해 인식이 놓쳐도 기차가 멈추지 않게 한다.

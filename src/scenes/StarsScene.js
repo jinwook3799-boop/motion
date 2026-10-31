@@ -35,7 +35,7 @@ export class StarsScene {
     this.pulse = new Array(GOAL).fill(0);
     this.star = null;
     this.state = 'intro';
-    this.after(speak('하늘에 별이 떴어요! 손을 쭉 뻗어서 별을 잡아 봐요!'), () => this.spawn());
+    this.after(speak('하늘에 별이 떴어요!'), () => this.spawn());
   }
 
   exit() {

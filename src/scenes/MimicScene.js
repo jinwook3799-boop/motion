@@ -1,9 +1,10 @@
-import { chick, frog, penguin, rabbit } from '../engine/animals.js';
+import { bear, chick, crab, elephant, frog, gorilla, kangaroo, penguin, rabbit, turtle } from '../engine/animals.js';
 import { footprint } from '../engine/icons.js';
 import { COLORS, RAINBOW } from '../engine/draw.js';
-import { P, shoulders, visible } from '../engine/pose.js';
+import { armPoint, bodyHeight, countSteps, perPerson, P, shoulders, visible } from '../engine/pose.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
+import { shuffle } from '../engine/util.js';
 
 // 각 감지기는 (상태, 포즈, dt) → 이번 프레임에 새로 인정된 동작 횟수.
 // 기준 길이는 어깨 너비(sw)라서 아이가 카메라에서 멀든 가깝든 똑같이 동작한다.
@@ -82,12 +83,82 @@ const DETECTORS = {
     const sideUp = ([w, e, shoulder]) =>
       visible(pose[w], 0.3) ? pose[w].y < (visible(nose, 0.4) ? nose.y : shoulder.y - sh.sw * 0.5) : visible(pose[e], 0.4) && pose[e].y < shoulder.y;
     const up = sideUp([P.lWrist, P.lElbow, sh.ls]) && sideUp([P.rWrist, P.rElbow, sh.rs]);
-    if (up) s.hold = (s.hold ?? 0) + dt;
-    const n = Math.floor((s.hold ?? 0) / 0.5);
-    const add = n - (s.counted ?? 0);
-    s.counted = n;
-    return add;
+    return holdCount(s, up, dt);
   },
+
+  // 곰 쿵쿵: 제자리 걸음 한 걸음마다 1회
+  steps(s, pose) {
+    return countSteps(s, pose);
+  },
+
+  // 코끼리 코: 아래로 내린 팔을 몸 앞에서 좌우로 흔들어 방향이 바뀔 때마다 1회
+  trunk(s, pose) {
+    const sh = shoulders(pose);
+    if (!sh) return 0;
+    const hands = [armPoint(pose, 'l'), armPoint(pose, 'r')].filter((p) => p && p.y > sh.my - sh.sw * 0.2);
+    if (!hands.length) return 0;
+    const off = (hands.reduce((sum, p) => sum + p.x, 0) / hands.length - sh.mx) / sh.sw;
+    return alternate(s, off > 0.45 ? 1 : off < -0.45 ? -1 : 0);
+  },
+
+  // 게 옆걸음: 몸을 옆으로 크게 옮겼다 돌아올 때(방향이 바뀔 때)마다 1회
+  sideways(s, pose, dt) {
+    const sh = shoulders(pose);
+    if (!sh) return 0;
+    s.cx ??= sh.mx;
+    s.cx += (sh.mx - s.cx) * Math.min(1, dt * 0.3);
+    const off = (sh.mx - s.cx) / sh.sw;
+    return alternate(s, off > 0.5 ? 1 : off < -0.5 ? -1 : 0);
+  },
+
+  // 거북이 숨기: 쪼그려 앉아 있는 동안 0.5초마다 1회
+  hide(s, pose, dt) {
+    s.height ??= {};
+    return holdCount(s, bodyHeight(s.height, pose, dt) === 'down', dt);
+  },
+
+  // 고릴라 가슴 두드리기: 손이 가슴 쪽으로 들어올 때마다 1회
+  chest(s, pose) {
+    const sh = shoulders(pose);
+    if (!sh) return 0;
+    let hits = 0;
+    for (const [side, w] of [['l', P.lWrist], ['r', P.rWrist]]) {
+      const p = pose[w];
+      const on = visible(p, 0.4) && p.y > sh.my - sh.sw * 0.1 && p.y < sh.my + sh.sw * 1.3 && Math.abs(p.x - sh.mx) < sh.sw * 0.45;
+      if (on && !s[side]) hits++;
+      s[side] = on;
+    }
+    return hits;
+  },
+};
+
+// 자세를 유지하는 동안 0.5초마다 1회
+function holdCount(s, on, dt) {
+  if (on) s.hold = (s.hold ?? 0) + dt;
+  const n = Math.floor((s.hold ?? 0) / 0.5);
+  const add = n - (s.counted ?? 0);
+  s.counted = n;
+  return add;
+}
+
+// 왼쪽(-1)·오른쪽(1)을 번갈아 오갈 때마다 1회(처음 한쪽으로 간 것은 세지 않는다)
+function alternate(s, side) {
+  if (side === 0 || side === s.last) return 0;
+  const counted = s.last !== undefined;
+  s.last = side;
+  return counted ? 1 : 0;
+}
+
+// 각 동물의 동작 시범(draw 할 때 동물 그림을 움직이는 방식)
+const DEMO = {
+  jump: (ctx, s, t) => ctx.translate(0, -Math.abs(Math.sin(t * 4)) * s * 0.6),
+  waddle: (ctx, s, t) => ctx.rotate(Math.sin(t * 4) * 0.25),
+  ears: (ctx, s) => ctx.translate(0, s * 0.2),
+  steps: (ctx, s, t) => ctx.translate(Math.sin(t * 3) * s * 0.1, -Math.abs(Math.sin(t * 6)) * s * 0.15),
+  trunk: (ctx, s, t) => ctx.rotate(Math.sin(t * 3) * 0.12),
+  sideways: (ctx, s, t) => ctx.translate(Math.sin(t * 2.5) * s * 0.6, 0),
+  hide: (ctx, s, t) => ctx.scale(1, 0.75 + Math.abs(Math.sin(t * 2)) * 0.25),
+  chest: (ctx, s, t) => ctx.translate(Math.sin(t * 25) * s * 0.03, 0),
 };
 
 const ANIMALS = [
@@ -95,7 +166,14 @@ const ANIMALS = [
   { draw: chick, detector: 'flap', goal: 4, color: COLORS.yellow, voice: '아기 새처럼 두 팔을 파닥파닥 흔들어 봐요!' },
   { draw: penguin, detector: 'waddle', goal: 4, color: COLORS.blue, voice: '펭귄처럼 몸을 뒤뚱뒤뚱 흔들어 봐요!' },
   { draw: rabbit, detector: 'ears', goal: 3, color: COLORS.pink, voice: '토끼처럼 두 손을 머리 위로 쫑긋 올려 봐요!' },
+  { draw: bear, detector: 'steps', goal: 8, color: '#9C6B4A', voice: '곰처럼 쿵쿵 제자리에서 걸어 봐요!' },
+  { draw: elephant, detector: 'trunk', goal: 4, color: '#8D99AE', voice: '코끼리처럼 팔을 코처럼 내리고 좌우로 흔들흔들!' },
+  { draw: crab, detector: 'sideways', goal: 3, color: '#FF6B4A', voice: '게처럼 옆으로 옆으로 왔다 갔다 걸어 봐요!' },
+  { draw: turtle, detector: 'hide', goal: 3, color: '#4FA84F', voice: '거북이처럼 쪼그려 앉아서 쏙 숨어 봐요!' },
+  { draw: kangaroo, detector: 'jump', goal: 3, color: COLORS.orange, voice: '캥거루처럼 깡충깡충 뛰어 봐요!' },
+  { draw: gorilla, detector: 'chest', goal: 6, color: COLORS.purple, voice: '고릴라처럼 가슴을 쿵쿵 두드려 봐요!' },
 ];
+const ROUND = 5; // 한 판에 흉내 낼 동물 수(10마리 중 무작위)
 
 // 모듈 2. 동물 친구 흉내 내기 릴레이
 export class MimicScene {
@@ -107,7 +185,7 @@ export class MimicScene {
   }
 
   get animal() {
-    return ANIMALS[this.index];
+    return this.round[this.index];
   }
 
   get avatarColor() {
@@ -115,8 +193,13 @@ export class MimicScene {
   }
 
   enter() {
-    this.index = 0;
     this.t = 0;
+    this.newRound();
+  }
+
+  newRound() {
+    this.round = shuffle(ANIMALS).slice(0, ROUND);
+    this.index = 0;
     this.startAnimal();
   }
 
@@ -124,7 +207,7 @@ export class MimicScene {
     this.state = 'play';
     this.count = 0;
     this.idle = 0;
-    this.det = {};
+    this.det = new Map(); // 아이 id → 동작 감지 상태
     this.pulse = new Array(this.animal.goal).fill(0);
     speak(this.animal.voice);
   }
@@ -137,8 +220,9 @@ export class MimicScene {
       this.stateT -= dt;
       if (this.state === 'finale') this.firework(dt);
       if (this.stateT > 0) return;
-      if (this.state === 'done' && this.index === ANIMALS.length - 1) return this.finale();
-      this.index = (this.index + 1) % ANIMALS.length;
+      if (this.state === 'finale') return this.newRound();
+      if (this.index === this.round.length - 1) return this.finale();
+      this.index++;
       this.startAnimal();
       return;
     }
@@ -149,8 +233,9 @@ export class MimicScene {
       this.idle = 0;
       speak(this.animal.voice);
     }
-    if (!input.pose) return;
-    const hits = DETECTORS[this.animal.detector](this.det, input.pose, dt);
+    // 두 아이가 함께 흉내 내면 둘의 동작이 모두 발자국으로 쌓인다.
+    let hits = 0;
+    for (const p of perPerson(this.det, input.people)) hits += DETECTORS[this.animal.detector](p.state, p.pose, dt);
     for (let i = 0; i < hits && this.state === 'play'; i++) this.addCount();
   }
 
@@ -208,9 +293,8 @@ export class MimicScene {
     // 지금 흉내 낼 동물(동작 시범)
     ctx.save();
     ctx.translate(w / 2, this.animalY);
-    if (a.detector === 'jump' || cheer) ctx.translate(0, -Math.abs(Math.sin(this.t * 4)) * s * 0.6);
-    if (a.detector === 'waddle') ctx.rotate(Math.sin(this.t * 4) * 0.25);
-    if (a.detector === 'ears') ctx.translate(0, s * 0.2);
+    if (cheer) DEMO.jump(ctx, s, this.t);
+    else DEMO[a.detector]?.(ctx, s, this.t);
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.beginPath();
     ctx.arc(0, 0, s * 1.6, 0, Math.PI * 2);
@@ -218,9 +302,21 @@ export class MimicScene {
     a.draw(ctx, 0, 0, s, this.t);
     ctx.restore();
 
-    // 다음 동물 미리 보기
-    const next = ANIMALS[(this.index + 1) % ANIMALS.length];
+    // 다음 동물 미리 보기(이번 판의 마지막 동물이면 없음)
+    const next = this.round[this.index + 1];
     const nx = w / 2 + unit * 0.26;
+    if (next) this.drawNext(ctx, next, nx, s);
+
+    // 발자국 게이지
+    for (let i = 0; i < a.goal; i++) {
+      const { x, y } = this.footprintPos(i);
+      const filled = i < this.count;
+      footprint(ctx, x, y, unit * 0.035 * (1 + this.pulse[i] * 0.5), filled ? a.color : 'rgba(61,44,46,0.15)', i % 2 ? -1 : 1);
+    }
+  }
+
+  drawNext(ctx, next, nx, s) {
+    const { unit } = this.game;
     ctx.save();
     ctx.globalAlpha = 0.65;
     ctx.fillStyle = COLORS.ink;
@@ -235,12 +331,5 @@ export class MimicScene {
     ctx.fill();
     next.draw(ctx, nx, this.animalY, s * 0.45, 0);
     ctx.restore();
-
-    // 발자국 게이지
-    for (let i = 0; i < a.goal; i++) {
-      const { x, y } = this.footprintPos(i);
-      const filled = i < this.count;
-      footprint(ctx, x, y, unit * 0.035 * (1 + this.pulse[i] * 0.5), filled ? a.color : 'rgba(61,44,46,0.15)', i % 2 ? -1 : 1);
-    }
   }
 }

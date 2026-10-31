@@ -48,6 +48,56 @@ export function shoulders(pose) {
   };
 }
 
+// 아이 위치(두 명을 구분하는 기준): 어깨 가운데, 없으면 보이는 점들의 평균
+export function bodyCenter(pose) {
+  const sh = shoulders(pose);
+  if (sh) return { x: sh.mx, y: sh.my };
+  const pts = pose.filter((p) => visible(p, 0.3));
+  if (!pts.length) return { x: pose[0].x, y: pose[0].y };
+  return { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+}
+
+// 아이마다 따로 기억하는 상태(점프 기준 높이 등). 화면에서 사라진 아이의 상태는 버린다.
+export function perPerson(map, people) {
+  const ids = new Set(people.map((p) => p.id));
+  for (const id of map.keys()) if (!ids.has(id)) map.delete(id);
+  return people.map((p) => {
+    if (!map.has(p.id)) map.set(p.id, {});
+    return { ...p, state: map.get(p.id) };
+  });
+}
+
+// 제자리 걸음·달리기의 걸음 수. 무릎이 보이면 무릎 들기로, 안 보이면 어깨가 들썩이는 것으로 센다.
+const BOB = 0.05; // 어깨가 이만큼(어깨너비 배) 오르내리면 한 걸음
+export function countSteps(s, pose) {
+  const l = kneeUp(pose, 'l');
+  const r = kneeUp(pose, 'r');
+  let steps = 0;
+  if (l !== null && r !== null) {
+    if (l && !s.l) steps++;
+    if (r && !s.r) steps++;
+    s.l = l;
+    s.r = r;
+    return steps;
+  }
+  const sh = shoulders(pose);
+  if (!sh) return 0;
+  const y = sh.my;
+  const amp = sh.sw * BOB;
+  const b = (s.bob ??= { dir: 'up', top: y, bottom: y });
+  if (b.dir === 'up') {
+    b.top = Math.min(b.top, y);
+    if (y > b.top + amp) Object.assign(b, { dir: 'down', bottom: y });
+  } else {
+    b.bottom = Math.max(b.bottom, y);
+    if (y < b.bottom - amp) {
+      Object.assign(b, { dir: 'up', top: y });
+      steps++;
+    }
+  }
+  return steps;
+}
+
 // 손(안 보이면 팔꿈치) 위치. side: 'l' | 'r'
 export function armPoint(pose, side) {
   const [w, e] = side === 'l' ? [P.lWrist, P.lElbow] : [P.rWrist, P.rElbow];

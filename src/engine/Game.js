@@ -2,8 +2,10 @@ import { ParticleSystem } from './particles.js';
 import { childSilhouette, lightBulb, star, COLORS } from './draw.js';
 import { homeIcon } from './icons.js';
 import { HoverButton } from './HoverButton.js';
-import { drawAvatar, visible, P } from './pose.js';
+import { bodyCenter, drawAvatar, visible, P } from './pose.js';
 import { loadTracker } from './trackers.js';
+import { drawGuide, GUIDES } from './guides.js';
+import { delay } from './util.js';
 import { music, sfx } from './audio.js';
 import { speak, stopSpeaking } from './voice.js';
 import { MenuScene } from '../scenes/MenuScene.js';
@@ -22,12 +24,17 @@ import { RunnerScene } from '../scenes/RunnerScene.js';
 import { TrainScene } from '../scenes/TrainScene.js';
 import { PoseScene } from '../scenes/PoseScene.js';
 import { StarsScene } from '../scenes/StarsScene.js';
+import { HighFiveScene } from '../scenes/HighFiveScene.js';
+import { RallyScene } from '../scenes/RallyScene.js';
+import { MirrorScene } from '../scenes/MirrorScene.js';
+import { TeamBalloonScene } from '../scenes/TeamBalloonScene.js';
 
 const PALM_IDS = [0, 5, 9, 13, 17];
 const POSE_POINTERS = { lw: P.lWrist, rw: P.rWrist, li: P.lIndex, ri: P.rIndex };
 const TRAIL_LENGTH = 14;
 const ABSENT_AFTER = 4; // 초
 const MOUSE_IDLE = 2; // 초
+const GUIDE_MIN_TIME = 4000; // 놀이 설명을 최소한 보여 주는 시간(ms) — 음성이 짧거나 안 나와도 동작은 볼 수 있게
 const MOTION_W = 64;
 const MOTION_H = 48;
 const MOTION_PIXEL_DIFF = 32; // 이 이상 밝기가 바뀐 픽셀을 '움직임'으로 본다
@@ -45,12 +52,13 @@ export class Game {
 
     this.time = 0;
     this.hands = [];
-    this.pose = null;
+    this.people = []; // 몸 인식된 아이들 [{ id, pose, center }]
+    this.nextPersonId = 0;
     this.trails = [];
     this.mouse = null;
     this.lastVideoTime = -1;
     this.lastDetectTs = 0;
-    this.cover = { dx: 0, dy: 0, dw: 1, dh: 1 };
+    this.view = { dx: 0, dy: 0, dw: 1, dh: 1 };
 
     this.motion = 0;
     this.motionPrev = null;
@@ -91,6 +99,10 @@ export class Game {
       train: new TrainScene(this),
       pose: new PoseScene(this),
       stars: new StarsScene(this),
+      highfive: new HighFiveScene(this),
+      rally: new RallyScene(this),
+      mirror: new MirrorScene(this),
+      team: new TeamBalloonScene(this),
       sound: new SoundScene(this),
       instrument: new InstrumentScene(this),
       drawing: new DrawingScene(this),
@@ -135,12 +147,29 @@ export class Game {
     this.particles.clear();
     this.hands = [];
     this.trails = [];
-    this.pose = null;
+    this.people = [];
     this.motion = 0;
     this.motionPrev = null;
     this.absentTime = 0;
     this.homeButton.progress = 0;
     this.ensureTracker(this.trackerKind);
+
+    // 놀이를 시작하기 전에 하는 방법을 동작과 음성으로 보여 준다(화면을 터치하면 건너뜀).
+    // 설명이 끝나야 놀이가 시작되므로, 그동안 몸 인식 모델도 미리 준비된다.
+    const guide = GUIDES[name];
+    this.guide = null;
+    if (!guide) {
+      this.scene.enter?.();
+      return;
+    }
+    const current = (this.guide = { ...guide, t: 0 });
+    Promise.all([speak(guide.text), delay(GUIDE_MIN_TIME)])
+      .then(() => delay(500))
+      .then(() => this.guide === current && this.endGuide());
+  }
+
+  endGuide() {
+    this.guide = null;
     this.scene.enter?.();
   }
 
@@ -189,6 +218,7 @@ export class Game {
   onPointerDown = (e) => {
     this.mouse = { x: e.clientX, y: e.clientY, t: this.time, touch: e.pointerType !== 'mouse' };
     if (this.showHome && this.homeButton.tap(e.clientX, e.clientY)) return;
+    if (this.guide) return this.endGuide(); // 보호자가 설명을 건너뛸 수 있다
     this.scene.onTap?.(e.clientX, e.clientY);
   };
 
@@ -208,31 +238,33 @@ export class Game {
     this.last = now;
     this.time += dt;
 
-    this.updateCover();
+    this.updateView();
     this.detect(now);
     const input = this.buildInput();
     this.monitor(dt, input);
     const scene = this.scene;
-    scene.update(dt, input);
+    if (this.guide) this.guide.t += dt;
+    else scene.update(dt, input);
     if (this.showHome && this.scene === scene) this.homeButton.update(dt, input.pointers);
     this.particles.update(dt);
     this.render();
   };
 
-  // 비디오를 화면에 꽉 차게(cover) 배치하는 좌표 변환 정보
-  updateCover() {
+  // 비디오를 자르지 않고 화면 안에 전부 보이게(contain) 배치하는 좌표 변환 정보.
+  // 카메라에 찍힌 범위를 모두 보여 주어 두 아이가 함께 들어오기 쉽다.
+  updateView() {
     const vw = this.video.videoWidth;
     const vh = this.video.videoHeight;
     if (!vw || !vh) return;
-    const s = Math.max(this.w / vw, this.h / vh);
+    const s = Math.min(this.w / vw, this.h / vh);
     const dw = vw * s;
     const dh = vh * s;
-    this.cover = { dx: (this.w - dw) / 2, dy: (this.h - dh) / 2, dw, dh };
+    this.view = { dx: (this.w - dw) / 2, dy: (this.h - dh) / 2, dw, dh };
   }
 
   // 정규화 좌표(0~1) → 거울처럼 좌우 반전된 화면 좌표
   toScreen(l) {
-    const c = this.cover;
+    const c = this.view;
     return { x: c.dx + (1 - l.x) * c.dw, y: c.dy + l.y * c.dh };
   }
 
@@ -256,8 +288,8 @@ export class Game {
     }
 
     if (kind === 'pose') {
-      const lms = result.landmarks?.[0];
-      this.pose = lms ? lms.map((l) => ({ ...this.toScreen(l), v: l.visibility ?? 1 })) : null;
+      const poses = (result.landmarks ?? []).map((lms) => lms.map((l) => ({ ...this.toScreen(l), v: l.visibility ?? 1 })));
+      this.trackPeople(poses);
       return;
     }
 
@@ -276,6 +308,30 @@ export class Game {
       trail.push(hand.tip);
       if (trail.length > TRAIL_LENGTH) trail.shift();
     });
+  }
+
+  // 인식 결과의 순서는 프레임마다 바뀔 수 있으므로, 직전 프레임에서 가장 가까이 있던 아이와 같은 id 를 붙인다.
+  // 장면은 이 id 로 아이마다 따로 동작 상태(점프 기준 높이 등)를 기억한다.
+  trackPeople(poses) {
+    const prev = this.people;
+    const used = new Set();
+    this.people = poses
+      .map((pose) => {
+        const center = bodyCenter(pose);
+        let best = null;
+        let bestDist = this.unit * 0.35;
+        for (const p of prev) {
+          const d = Math.hypot(p.center.x - center.x, p.center.y - center.y);
+          if (!used.has(p.id) && d < bestDist) {
+            best = p;
+            bestDist = d;
+          }
+        }
+        const id = best ? best.id : this.nextPersonId++;
+        used.add(id);
+        return { id, pose, center };
+      })
+      .sort((a, b) => a.id - b.id);
   }
 
   // 프레임 차이(Frame Difference): 직전 프레임과 비교해 밝기가 바뀐 픽셀 비율(0~1)
@@ -313,20 +369,20 @@ export class Game {
         if (this.inZone(p)) pointers.push({ x: p.x, y: p.y, key: `h${i}-${name}`, part: name });
       }
     });
-    if (this.pose) {
+    for (const person of this.people) {
       for (const [name, idx] of Object.entries(POSE_POINTERS)) {
-        const p = this.pose[idx];
-        if (visible(p) && this.inZone(p)) pointers.push({ x: p.x, y: p.y, key: `p-${name}`, part: 'tip' });
+        const p = person.pose[idx];
+        if (visible(p) && this.inZone(p)) pointers.push({ x: p.x, y: p.y, key: `p${person.id}-${name}`, part: 'tip' });
       }
     }
     const mouseActive = this.mouse && (this.mouse.touch || this.time - this.mouse.t < MOUSE_IDLE);
     if (mouseActive) pointers.push({ x: this.mouse.x, y: this.mouse.y, key: 'mouse', part: 'tip' });
     return {
       hands: this.hands,
-      pose: this.pose,
+      people: this.people, // [{ id, pose }] 최대 2명
       pointers,
       motion: this.motion,
-      present: this.hands.length > 0 || !!this.pose || !!mouseActive,
+      present: this.hands.length > 0 || this.people.length > 0 || !!mouseActive,
     };
   }
 
@@ -336,7 +392,7 @@ export class Game {
 
   // 아이가 화면에서 사라지거나 방이 어두우면 음성으로 안내한다(PRD 6).
   monitor(dt, input) {
-    this.absentTime = input.present || !this.trackerReady ? 0 : this.absentTime + dt;
+    this.absentTime = input.present || !this.trackerReady || this.guide ? 0 : this.absentTime + dt;
     if (this.absentTime > ABSENT_AFTER && this.time - this.lastAbsentVoice > 12) {
       this.lastAbsentVoice = this.time;
       speak('카메라 앞에 서 주세요!');
@@ -358,7 +414,7 @@ export class Game {
   }
 
   render() {
-    const { ctx, w, h, cover: c } = this;
+    const { ctx, w, h, view: c } = this;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = '#FFF7E0';
     ctx.fillRect(0, 0, w, h);
@@ -375,13 +431,25 @@ export class Game {
     ctx.fillRect(0, 0, w, h);
     this.drawZoneFrame();
 
-    if (this.scene.showAvatar && this.pose) drawAvatar(ctx, this.pose, this.scene.avatarColor ?? COLORS.blue);
-    this.scene.draw(ctx);
+    if (this.guide) {
+      // 설명 중에는 놀이가 아직 시작되지 않았으므로 설명 카드만 그린다.
+      drawGuide(ctx, this, this.guide);
+    } else {
+      if (this.scene.showAvatar) {
+        // 두 번째 아이는 다른 색으로 그려 서로 구분되게 한다.
+        const first = this.scene.avatarColor ?? COLORS.blue;
+        const colors = [first, first === COLORS.pink ? COLORS.green : COLORS.pink];
+        this.people.forEach((p, i) => drawAvatar(ctx, p.pose, this.scene.avatarColorOf?.(p) ?? colors[i % 2]));
+      }
+      this.scene.draw(ctx);
+    }
     this.particles.draw(ctx);
     if (this.showHome) this.homeButton.draw(ctx);
     this.drawCursors();
 
-    if (!this.trackerReady) this.drawLoading();
+    if (this.guide) {
+      // 설명 카드 위에는 안내 표시를 겹치지 않는다.
+    } else if (!this.trackerReady) this.drawLoading();
     else if (this.absentTime > ABSENT_AFTER) this.drawAbsentHint();
     if (this.dark) lightBulb(ctx, w / 2, h * 0.86, this.unit * 0.07 * (1 + Math.sin(this.time * 4) * 0.08));
   }
@@ -421,7 +489,7 @@ export class Game {
       return;
     }
     const tips = this.hands.map((h) => h.tip);
-    if (this.pose) for (const i of [P.lWrist, P.rWrist]) if (visible(this.pose[i])) tips.push(this.pose[i]);
+    for (const { pose } of this.people) for (const i of [P.lWrist, P.rWrist]) if (visible(pose[i])) tips.push(pose[i]);
     if (this.mouse && !this.mouse.touch && this.time - this.mouse.t < MOUSE_IDLE) tips.push(this.mouse);
     for (const p of tips) {
       ctx.fillStyle = 'rgba(255,255,255,0.55)';

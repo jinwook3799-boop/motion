@@ -4,7 +4,7 @@ import { poseKid } from '../engine/scenery.js';
 import { armPoint, legsVisible, shoulders, visible, P } from '../engine/pose.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
-import { pick } from '../engine/util.js';
+import { pick, shuffle } from '../engine/util.js';
 import { firework } from './common.js';
 
 const GOAL = 5;
@@ -21,8 +21,17 @@ function arms(pose) {
   if (!sh || !l || !r) return null;
   const nose = pose[P.nose];
   const head = visible(nose, 0.4) ? nose.y : sh.my - sh.sw * 0.6;
-  return { sh, l, r, head };
+  // 얼굴 가운데(손으로 얼굴을 가리면 코가 안 보일 수 있어 어깨로 짐작)
+  const face = visible(nose, 0.2) ? nose : { x: sh.mx, y: sh.my - sh.sw * 0.7 };
+  const le = visible(pose[P.lElbow], 0.4) ? pose[P.lElbow] : null;
+  const re = visible(pose[P.rElbow], 0.4) ? pose[P.rElbow] : null;
+  return { sh, l, r, head, face, le, re };
 }
+
+// 팔꿈치가 몸 바깥으로 벌어졌는지(허리에 손 짚은 자세 등)
+const elbowOut = (a, e) => e && Math.abs(e.x - a.sh.mx) > a.sh.sw * 0.85;
+// 손이 허리 높이인지
+const atHip = (a, p) => p.y > a.sh.my + a.sh.sw * 0.7;
 
 const POSES = [
   {
@@ -63,6 +72,58 @@ const POSES = [
       return visible(la) && visible(ra) && Math.abs(la.y - ra.y) > a.sh.sw * 0.5;
     },
   },
+  {
+    id: 'muscle',
+    voice: '두 팔을 접어 올려서 힘센 근육맨!',
+    match: (a) =>
+      a.le && a.re &&
+      Math.abs(a.le.y - a.sh.my) < a.sh.sw * 0.6 && Math.abs(a.re.y - a.sh.my) < a.sh.sw * 0.6 &&
+      Math.abs(a.le.x - a.re.x) > a.sh.sw * 1.6 &&
+      a.l.y < a.le.y - a.sh.sw * 0.25 && a.r.y < a.re.y - a.sh.sw * 0.25,
+  },
+  {
+    id: 'bunny',
+    voice: '두 손을 머리 위에 올려서 쫑긋 토끼 귀!',
+    match: (a) =>
+      a.l.y < a.head && a.r.y < a.head &&
+      dist(a.l, a.r) >= a.sh.sw * 0.6 && dist(a.l, a.r) < a.sh.sw * 1.8 &&
+      Math.abs(a.l.x - a.sh.mx) < a.sh.sw && Math.abs(a.r.x - a.sh.mx) < a.sh.sw,
+  },
+  {
+    id: 'superhero',
+    voice: '두 손을 허리에 척! 씩씩한 슈퍼맨!',
+    match: (a) => atHip(a, a.l) && atHip(a, a.r) && elbowOut(a, a.le) && elbowOut(a, a.re),
+  },
+  {
+    id: 'cheeks',
+    voice: '두 손으로 볼을 감싸서 예쁜 꽃받침!',
+    match: (a) =>
+      [a.l, a.r].every((p) => Math.abs(p.y - a.face.y) < a.sh.sw * 0.6 && Math.abs(p.x - a.face.x) < a.sh.sw * 0.9) &&
+      dist(a.l, a.r) > a.sh.sw * 0.6,
+  },
+  {
+    id: 'peekaboo',
+    voice: '두 손으로 눈을 가리고 까꿍!',
+    match: (a) => dist(a.l, a.face) < a.sh.sw * 0.6 && dist(a.r, a.face) < a.sh.sw * 0.6 && dist(a.l, a.r) < a.sh.sw * 0.8,
+  },
+  {
+    id: 'teapot',
+    voice: '한 손은 허리에, 한 손은 옆으로 쭉! 주전자!',
+    match: (a) => {
+      const spout = (p) => Math.abs(p.x - a.sh.mx) > a.sh.sw * 1.4 && p.y < a.sh.my + a.sh.sw * 0.6;
+      return (atHip(a, a.l) && elbowOut(a, a.le) && spout(a.r)) || (atHip(a, a.r) && elbowOut(a, a.re) && spout(a.l));
+    },
+  },
+  {
+    id: 'cross',
+    voice: '두 팔을 가슴 앞에서 엇갈려서 엑스!',
+    match: (a) => {
+      const chest = (p) => p.y > a.sh.my - a.sh.sw * 0.3 && p.y < a.sh.my + a.sh.sw * 1.4;
+      // 왼손이 오른쪽으로, 오른손이 왼쪽으로 넘어가 있으면 엇갈린 것
+      const crossed = Math.sign(a.l.x - a.r.x) !== Math.sign(a.sh.ls.x - a.sh.rs.x) && Math.abs(a.l.x - a.r.x) > a.sh.sw * 0.15;
+      return chest(a.l) && chest(a.r) && crossed;
+    },
+  },
 ];
 
 // 포즈 따라 하기
@@ -83,7 +144,7 @@ export class PoseScene {
     this.legsSeenAt = -Infinity;
     this.state = 'intro';
     this.current = null;
-    this.after(speak('친구가 하는 자세를 똑같이 따라 해 봐요!'), () => this.next());
+    this.after(speak('자, 시작해요!'), () => this.next());
   }
 
   exit() {
@@ -99,9 +160,12 @@ export class PoseScene {
 
   next() {
     if (this.score >= GOAL) this.score = 0;
+    // 모든 자세가 한 번씩 섞여 나오도록 순서를 섞어 두고 차례로 꺼낸다.
     // 한 발 들기는 다리가 화면에 보일 때만 낸다.
     const legsOk = this.game.time - this.legsSeenAt < 3;
-    this.current = pick(POSES.filter((p) => p !== this.current && (!p.needsLegs || legsOk)));
+    if (!this.queue?.length) this.queue = shuffle(POSES.filter((p) => p !== this.current));
+    const i = this.queue.findIndex((p) => !p.needsLegs || legsOk);
+    this.current = i >= 0 ? this.queue.splice(i, 1)[0] : pick(POSES.filter((p) => !p.needsLegs));
     this.hold = 0;
     this.idle = 0;
     this.state = 'pose';
@@ -115,7 +179,7 @@ export class PoseScene {
   update(dt, input) {
     const t = this.game.time;
     for (let i = 0; i < GOAL; i++) this.pulse[i] = Math.max(0, this.pulse[i] - dt * 2.5);
-    if (input.pose && legsVisible(input.pose)) this.legsSeenAt = t;
+    if (input.people.some((p) => legsVisible(p.pose))) this.legsSeenAt = t;
 
     if (this.state === 'celebrate') {
       this.stateT -= dt;
@@ -129,8 +193,11 @@ export class PoseScene {
     }
     if (this.state !== 'pose') return;
 
-    const a = input.pose && arms(input.pose);
-    const ok = a && this.current.match(a, input.pose);
+    // 두 아이 중 누구라도 자세를 따라 하면 진행된다.
+    const ok = input.people.some(({ pose }) => {
+      const a = arms(pose);
+      return a && this.current.match(a, pose);
+    });
     this.hold = ok ? this.hold + dt : Math.max(0, this.hold - dt * 0.6);
     this.idle = ok ? 0 : this.idle + dt;
     if (this.idle > 9) {

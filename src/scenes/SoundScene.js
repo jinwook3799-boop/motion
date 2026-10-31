@@ -63,7 +63,7 @@ export class SoundScene {
     this.cards = [];
     this.slotPulse = new Array(GOAL).fill(0);
     for (const id of Object.keys(ANIMAL_INFO)) loadSample(soundUrl(id));
-    this.after(speak('동물 소리를 잘 듣고, 그 동물에게 손을 쭉 뻗어 보세요!'), () => this.newRound());
+    this.after(speak('잘 들어 보세요!'), () => this.newRound());
   }
 
   exit() {

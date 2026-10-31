@@ -29,7 +29,7 @@ export class InstrumentScene {
 
   enter() {
     this.prevTargets.clear();
-    speak('손으로 북이랑 실로폰이랑 심벌즈를 두드려 보세요!');
+    speak('연주를 시작해요!');
   }
 
   targetAt(p) {

@@ -2,7 +2,7 @@ import { rabbit } from '../engine/animals.js';
 import { COLORS } from '../engine/draw.js';
 import { starGauge } from '../engine/icons.js';
 import { flyingBird, log } from '../engine/scenery.js';
-import { bodyHeight } from '../engine/pose.js';
+import { bodyHeight, perPerson } from '../engine/pose.js';
 import { sfx } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
 import { firework } from './common.js';
@@ -44,9 +44,8 @@ export class RunnerScene {
     this.jumpT = Infinity;
     this.duckT = 0;
     this.stumbleT = 0;
-    this.height = {};
-    this.lastHeight = 'stand';
-    this.after(speak('통나무가 오면 점프! 새가 오면 쏙 앉아요! 출발!'), () => {
+    this.heights = new Map(); // 아이 id → 키 높이 상태
+    this.after(speak('준비, 출발!'), () => {
       this.state = 'run';
       this.spawnT = 0.5;
     });
@@ -90,11 +89,12 @@ export class RunnerScene {
     this.stumbleT = Math.max(0, this.stumbleT - dt);
     for (let i = 0; i < GOAL; i++) this.pulse[i] = Math.max(0, this.pulse[i] - dt * 2.5);
 
-    if (input.pose) {
-      const h = bodyHeight(this.height, input.pose, dt);
-      if (h === 'up' && this.lastHeight !== 'up') this.startJump();
+    // 두 아이 중 누가 뛰거나 앉아도 토끼가 따라 한다(아이마다 기준 높이를 따로 잰다).
+    for (const p of perPerson(this.heights, input.people)) {
+      const h = bodyHeight(p.state, p.pose, dt);
+      if (h === 'up' && p.state.last !== 'up') this.startJump();
       if (h === 'down') this.duckT = DUCK_HOLD;
-      if (h) this.lastHeight = h;
+      if (h) p.state.last = h;
     }
     if (this.state === 'intro') return;
 

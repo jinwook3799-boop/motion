@@ -10,7 +10,7 @@ const factories = {
     HandLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: `${BASE}mediapipe/hand_landmarker.task`, delegate },
       runningMode: 'VIDEO',
-      numHands: 2,
+      numHands: 4, // 아이 두 명의 양손
       minHandDetectionConfidence: MIN_CONFIDENCE,
       minHandPresenceConfidence: MIN_CONFIDENCE,
       minTrackingConfidence: MIN_CONFIDENCE,
@@ -19,7 +19,7 @@ const factories = {
     PoseLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: `${BASE}mediapipe/pose_landmarker_lite.task`, delegate },
       runningMode: 'VIDEO',
-      numPoses: 1,
+      numPoses: 2, // 아이 두 명
       minPoseDetectionConfidence: MIN_CONFIDENCE,
       minPosePresenceConfidence: MIN_CONFIDENCE,
       minTrackingConfidence: MIN_CONFIDENCE,

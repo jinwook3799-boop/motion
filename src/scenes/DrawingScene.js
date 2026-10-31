@@ -46,7 +46,7 @@ export class DrawingScene {
     this.color = 'rainbow';
     this.hue = 0;
     this.twinkleT = 0;
-    speak('손바닥을 보여 주고 움직이면 그림이 그려져요! 손을 내리면 멈춰요! 물방울을 만지면 색깔이 바뀌어요!');
+    speak('쓱쓱 그려 볼까요?');
   }
 
   dropAt(p) {

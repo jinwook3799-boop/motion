@@ -188,6 +188,134 @@ export function cow(ctx, x, y, s) {
   smile(ctx, x, y - s * 0.05, s * 0.9);
 }
 
+export function bear(ctx, x, y, s) {
+  const fur = '#9C6B4A';
+  circle(ctx, x - s * 0.68, y - s * 0.68, s * 0.3, fur);
+  circle(ctx, x + s * 0.68, y - s * 0.68, s * 0.3, fur);
+  circle(ctx, x - s * 0.68, y - s * 0.68, s * 0.16, '#E8B796');
+  circle(ctx, x + s * 0.68, y - s * 0.68, s * 0.16, '#E8B796');
+  circle(ctx, x, y, s * 0.95, fur);
+  ellipse(ctx, x, y + s * 0.3, s * 0.42, s * 0.32, '#E8C9A6');
+  smile(ctx, x, y + s * 0.05, s * 0.95);
+  ellipse(ctx, x, y + s * 0.18, s * 0.13, s * 0.09, COLORS.ink);
+}
+
+export function elephant(ctx, x, y, s, t = 0) {
+  const skin = '#A9B4C8';
+  ellipse(ctx, x - s * 0.85, y - s * 0.05, s * 0.55, s * 0.7, skin, -0.2);
+  ellipse(ctx, x + s * 0.85, y - s * 0.05, s * 0.55, s * 0.7, skin, 0.2);
+  ellipse(ctx, x - s * 0.85, y - s * 0.05, s * 0.35, s * 0.5, '#F2C6D3', -0.2);
+  ellipse(ctx, x + s * 0.85, y - s * 0.05, s * 0.35, s * 0.5, '#F2C6D3', 0.2);
+  circle(ctx, x, y, s * 0.78, skin);
+  // 코(살랑살랑 흔들린다)
+  const sway = Math.sin(t * 3) * s * 0.25;
+  ctx.strokeStyle = skin;
+  ctx.lineWidth = s * 0.3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.15);
+  ctx.quadraticCurveTo(x + sway * 0.5, y + s * 0.8, x + s * 0.25 + sway, y + s * 1.05);
+  ctx.stroke();
+  smile(ctx, x, y - s * 0.12, s * 0.85);
+}
+
+export function crab(ctx, x, y, s) {
+  const shell = '#FF6B4A';
+  ctx.strokeStyle = shell;
+  ctx.lineWidth = s * 0.12;
+  ctx.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.moveTo(x + side * s * 0.6, y + s * (0.05 + k * 0.18));
+      ctx.lineTo(x + side * s * 1.05, y + s * (0.25 + k * 0.25));
+      ctx.stroke();
+    }
+    // 집게
+    ctx.beginPath();
+    ctx.moveTo(x + side * s * 0.55, y - s * 0.2);
+    ctx.lineTo(x + side * s * 0.95, y - s * 0.6);
+    ctx.stroke();
+    circle(ctx, x + side * s * 1.0, y - s * 0.75, s * 0.28, shell);
+    ctx.fillStyle = '#FFF7E0';
+    ctx.beginPath();
+    ctx.moveTo(x + side * s * 1.0, y - s * 0.75);
+    ctx.lineTo(x + side * s * 1.0 + side * s * 0.1, y - s * 1.08);
+    ctx.lineTo(x + side * s * 1.0 - side * s * 0.18, y - s * 1.0);
+    ctx.fill();
+    // 눈자루
+    ctx.strokeStyle = shell;
+    ctx.beginPath();
+    ctx.moveTo(x + side * s * 0.25, y - s * 0.4);
+    ctx.lineTo(x + side * s * 0.3, y - s * 0.75);
+    ctx.stroke();
+    circle(ctx, x + side * s * 0.3, y - s * 0.8, s * 0.14, '#fff');
+    circle(ctx, x + side * s * 0.3, y - s * 0.8, s * 0.07, COLORS.ink);
+  }
+  ellipse(ctx, x, y + s * 0.05, s * 0.75, s * 0.55, shell);
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = s * 0.07;
+  ctx.beginPath();
+  ctx.arc(x, y + s * 0.02, s * 0.2, Math.PI * 0.15, Math.PI * 0.85);
+  ctx.stroke();
+  ctx.globalAlpha *= 0.7;
+  circle(ctx, x - s * 0.42, y + s * 0.1, s * 0.1, COLORS.cheek);
+  circle(ctx, x + s * 0.42, y + s * 0.1, s * 0.1, COLORS.cheek);
+  ctx.globalAlpha /= 0.7;
+}
+
+export function turtle(ctx, x, y, s) {
+  const skin = '#8BD17C';
+  circle(ctx, x + s * 0.95, y - s * 0.05, s * 0.35, skin);
+  circle(ctx, x + s * 1.02, y - s * 0.12, s * 0.06, COLORS.ink);
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = s * 0.05;
+  ctx.beginPath();
+  ctx.arc(x + s * 1.02, y - s * 0.02, s * 0.12, 0.2, Math.PI * 0.8);
+  ctx.stroke();
+  for (const fx of [-0.55, 0.45]) ellipse(ctx, x + fx * s, y + s * 0.42, s * 0.2, s * 0.14, skin);
+  ctx.fillStyle = '#4FA84F';
+  ctx.beginPath();
+  ctx.ellipse(x, y + s * 0.3, s * 0.85, s * 0.85, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#7BC86C';
+  for (const [dx, dy, r] of [[0, -0.2, 0.25], [-0.45, 0.05, 0.18], [0.45, 0.05, 0.18]]) {
+    ctx.beginPath();
+    ctx.arc(x + dx * s, y + dy * s, r * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#E9C893';
+  ctx.fillRect(x - s * 0.88, y + s * 0.26, s * 1.76, s * 0.1);
+}
+
+export function kangaroo(ctx, x, y, s) {
+  const fur = '#D9A066';
+  ellipse(ctx, x - s * 0.35, y - s * 0.85, s * 0.18, s * 0.45, fur, -0.25);
+  ellipse(ctx, x + s * 0.35, y - s * 0.85, s * 0.18, s * 0.45, fur, 0.25);
+  ellipse(ctx, x - s * 0.35, y - s * 0.85, s * 0.08, s * 0.3, '#F2C6A0', -0.25);
+  ellipse(ctx, x + s * 0.35, y - s * 0.85, s * 0.08, s * 0.3, '#F2C6A0', 0.25);
+  ellipse(ctx, x, y, s * 0.8, s * 0.9, fur);
+  ellipse(ctx, x, y + s * 0.35, s * 0.45, s * 0.35, '#F2D2A9');
+  smile(ctx, x, y + s * 0.05, s * 0.95);
+  ellipse(ctx, x, y + s * 0.2, s * 0.1, s * 0.07, COLORS.ink);
+}
+
+export function gorilla(ctx, x, y, s) {
+  const fur = '#4A4A5A';
+  circle(ctx, x - s * 0.85, y, s * 0.22, fur);
+  circle(ctx, x + s * 0.85, y, s * 0.22, fur);
+  circle(ctx, x, y, s * 0.95, fur);
+  ctx.fillStyle = '#B8A3A0';
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.25, y - s * 0.15, s * 0.32, s * 0.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + s * 0.25, y - s * 0.15, s * 0.32, s * 0.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + s * 0.3, s * 0.5, s * 0.38, 0, 0, Math.PI * 2);
+  ctx.fill();
+  smile(ctx, x, y + s * 0.0, s * 0.9);
+  ellipse(ctx, x - s * 0.08, y + s * 0.18, s * 0.05, s * 0.04, COLORS.ink);
+  ellipse(ctx, x + s * 0.08, y + s * 0.18, s * 0.05, s * 0.04, COLORS.ink);
+}
+
 // 두더지. dizzy 면 어지러운 눈과 머리 위를 도는 별.
 export function mole(ctx, x, y, s, dizzy = false, t = 0) {
   const fur = '#9C6B4A';

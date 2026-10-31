@@ -30,14 +30,14 @@ export class BalloonScene {
     this.score = 0;
     this.spawnT = 0;
     this.slotPulse = new Array(GOAL).fill(0);
-    speak('풍선을 터뜨려 볼까요? 가운데 동그라미에 손을 올려 보세요!');
+    speak('가운데 동그라미에 손을 올리면 시작해요!');
   }
 
   begin() {
     this.state = 'play';
     this.spawnT = 0.3;
     sfx.select();
-    speak('손을 흔들어서 풍선을 펑펑 터뜨려 보세요!');
+    speak('시작!');
   }
 
   onTap(x, y) {

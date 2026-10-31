@@ -44,7 +44,7 @@ export class WhackScene {
     this.hammers = [];
     this.slotPulse = new Array(GOAL).fill(0);
     for (const hole of this.holes) hole.mole = null;
-    speak('두더지가 쏙 나오면 손으로 콩! 잡아 보세요! 가운데 동그라미에 손을 올려 볼까요?');
+    speak('가운데 동그라미에 손을 올리면 시작해요!');
   }
 
   begin() {

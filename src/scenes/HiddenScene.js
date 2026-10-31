@@ -92,7 +92,7 @@ export class HiddenScene {
     this.hinted = false;
     this.trail = [];
     const name = josa(THINGS[this.target.id].name, '을', '를');
-    const text = this.firstAsk ? `${name} 찾아보세요! 찾으면 손으로 동그라미를 그려 주세요!` : `이번에는 ${name} 찾아보세요!`;
+    const text = this.firstAsk ? `${name} 찾아보세요!` : `이번에는 ${name} 찾아보세요!`;
     this.firstAsk = false;
     this.after(speak(text), () => {});
   }

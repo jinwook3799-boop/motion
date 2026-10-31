@@ -111,7 +111,8 @@ export function train(ctx, x, y, s, rot, passengers = []) {
   wheel(ctx, left + s * 2.35, y - s * 0.3, s * 0.3, rot);
 }
 
-// 따라 할 자세. 손 위치(몸 중심 기준, s 배)와 다리 모양을 정의한다.
+// 따라 할 자세. 손 위치(몸 중심 기준, s 배)와 팔꿈치·다리 모양을 정의한다.
+// front: 손이 얼굴·가슴 앞에 오는 자세(팔을 몸 위에 그린다)
 export const POSE_SHAPES = {
   hooray: { hands: [[-0.75, -1.9], [0.75, -1.9]] },
   airplane: { hands: [[-1.5, -0.45], [1.5, -0.45]] },
@@ -119,44 +120,61 @@ export const POSE_SHAPES = {
   heart: { hands: [[-0.12, -1.75], [0.12, -1.75]], elbows: [[-0.9, -1.2], [0.9, -1.2]] },
   star: { hands: [[-1.35, -1.55], [1.35, -1.55]], legsApart: true },
   flamingo: { hands: [[-1.4, -0.5], [1.4, -0.5]], legUp: true },
+  muscle: { hands: [[-1.05, -1.3], [1.05, -1.3]], elbows: [[-1.2, -0.5], [1.2, -0.5]] },
+  bunny: { hands: [[-0.32, -1.85], [0.32, -1.85]], elbows: [[-0.85, -1.25], [0.85, -1.25]] },
+  superhero: { hands: [[-0.48, 0.38], [0.48, 0.38]], elbows: [[-1.0, -0.05], [1.0, -0.05]], legsApart: true },
+  cheeks: { hands: [[-0.45, -0.92], [0.45, -0.92]], elbows: [[-0.62, 0.05], [0.62, 0.05]], front: true },
+  peekaboo: { hands: [[-0.16, -1.12], [0.16, -1.12]], elbows: [[-0.6, -0.05], [0.6, -0.05]], front: true },
+  teapot: { hands: [[-0.48, 0.38], [1.45, -0.85]], elbows: [[-1.0, -0.05], null] },
+  cross: { hands: [[0.38, -0.3], [-0.38, -0.3]], elbows: [[-0.55, 0.1], [0.55, 0.1]], front: true },
 };
 
 export function poseKid(ctx, x, y, s, shapeId, t = 0) {
-  const shape = POSE_SHAPES[shapeId];
-  const color = COLORS.orange;
+  kid(ctx, x, y + Math.sin(t * 3) * s * 0.04, s, POSE_SHAPES[shapeId]);
+}
+
+// 사람 모양 친구. shape: { hands, elbows?, legUp?, legsApart?, front?, color? }
+// 놀이 설명 화면에서도 손 위치를 바꿔 가며 움직이는 데 쓴다.
+export function kid(ctx, x, y, s, shape) {
+  const color = shape.color ?? COLORS.orange;
   ctx.save();
-  ctx.translate(x, y + Math.sin(t * 3) * s * 0.04);
+  ctx.translate(x, y);
   ctx.strokeStyle = color;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.lineWidth = s * 0.28;
-  // 다리
+  // 다리 (legUp: 1 = 오른다리, -1 = 왼다리)
   const spread = shape.legsApart ? 0.55 : 0.22;
-  ctx.beginPath();
-  ctx.moveTo(-s * 0.2, s * 0.5);
-  ctx.lineTo(-s * spread, s * 1.45);
-  if (shape.legUp) {
-    ctx.moveTo(s * 0.2, s * 0.5);
-    ctx.lineTo(s * 0.65, s * 0.75);
-    ctx.lineTo(s * 0.45, s * 1.15);
-  } else {
-    ctx.moveTo(s * 0.2, s * 0.5);
-    ctx.lineTo(s * spread, s * 1.45);
-  }
-  ctx.stroke();
-  // 팔
-  shape.hands.forEach(([hx, hy], i) => {
-    const sx = (i === 0 ? -1 : 1) * s * 0.42;
+  const legUp = shape.legUp === true ? 1 : shape.legUp ?? 0;
+  for (const side of [-1, 1]) {
     ctx.beginPath();
-    ctx.moveTo(sx, -s * 0.45);
-    if (shape.elbows) ctx.lineTo(shape.elbows[i][0] * s, shape.elbows[i][1] * s);
-    ctx.lineTo(hx * s, hy * s);
+    ctx.moveTo(side * s * 0.2, s * 0.5);
+    if (legUp === side) {
+      ctx.lineTo(side * s * 0.65, s * 0.75);
+      ctx.lineTo(side * s * 0.45, s * 1.15);
+    } else {
+      ctx.lineTo(side * s * spread, s * 1.45);
+    }
     ctx.stroke();
-    ctx.fillStyle = '#FFD6A5';
-    ctx.beginPath();
-    ctx.arc(hx * s, hy * s, s * 0.17, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  }
+
+  const arms = () =>
+    shape.hands.forEach(([hx, hy], i) => {
+      const sx = (i === 0 ? -1 : 1) * s * 0.42;
+      const elbow = shape.elbows?.[i];
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(sx, -s * 0.45);
+      if (elbow) ctx.lineTo(elbow[0] * s, elbow[1] * s);
+      ctx.lineTo(hx * s, hy * s);
+      ctx.stroke();
+      ctx.fillStyle = '#FFD6A5';
+      ctx.beginPath();
+      ctx.arc(hx * s, hy * s, s * 0.17, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+  if (!shape.front) arms();
   // 몸통과 머리
   ctx.fillStyle = color;
   roundRect(ctx, -s * 0.5, -s * 0.6, s, s * 1.2, s * 0.4);
@@ -170,5 +188,6 @@ export function poseKid(ctx, x, y, s, shapeId, t = 0) {
   ctx.arc(0, -s * 1.15, s * 0.5, Math.PI * 1.05, Math.PI * 1.95);
   ctx.fill();
   smile(ctx, 0, -s * 1.0, s * 0.62);
+  if (shape.front) arms();
   ctx.restore();
 }
