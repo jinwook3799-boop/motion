@@ -10,7 +10,8 @@
     "prebuild": "npm run setup",
     "build": "vite build",
     "preview": "vite preview",
-    "icons": "pwa-assets-generator"
+    "icons": "pwa-assets-generator",
+    "voices": "node --env-file-if-exists=.env.local scripts/generate-voices.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.2.0",

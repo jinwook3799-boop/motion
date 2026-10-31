@@ -1,5 +1,8 @@
 node_modules
 dist
 dev-dist
+# API 키 등 비밀 값(절대 올리지 않음)
+.env
+.env.*
 # npm run setup 이 매번 다시 만든다
 public/mediapipe

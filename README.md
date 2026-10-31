@@ -36,6 +36,22 @@ npm run preview   # 빌드 결과를 HTTPS로 미리 보기
 
 `npm run dev`/`build` 전에 MediaPipe 런타임과 손 인식 모델이 `public/mediapipe/`에 자동으로 준비됩니다.
 
+## 학습 놀이 음성 만들기 (Gemini TTS)
+
+알파벳·한글 놀이는 기기 음성 대신 미리 만든 자연스러운 음성 파일(`public/voices/`)을 재생합니다.
+파일이 없으면 기기 음성으로 읽습니다.
+
+1. [Google AI Studio](https://aistudio.google.com/apikey)에서 Gemini API 키를 발급받습니다.
+2. 프로젝트 폴더에 `.env.local` 파일을 만들고 한 줄을 적습니다(이 파일은 git에 올라가지 않습니다).
+   ```
+   GEMINI_API_KEY=발급받은키
+   ```
+3. `npm run voices` 를 실행합니다. 알파벳 26개, 낱말 18개, 안내 문장 7개가 만들어집니다.
+4. `public/voices/` 의 파일을 들어 보고, 마음에 들지 않는 파일은 지운 뒤 다시 실행하면 그 파일만 새로 만듭니다.
+   - 목소리 바꾸기: `.env.local` 에 `GEMINI_TTS_VOICE=Kore` 처럼 추가(기본값 `Leda`)
+   - 무료 사용 한도에 걸리면 만든 파일은 남아 있으니 다음 날 다시 실행하면 이어서 만듭니다.
+5. 만든 파일을 커밋해 올리면 배포된 앱에도 적용됩니다.
+
 ## 태블릿에서 테스트
 
 1. PC와 태블릿을 같은 와이파이에 연결합니다.

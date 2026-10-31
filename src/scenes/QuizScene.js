@@ -9,7 +9,7 @@ const REPLAY_AFTER = 12; // 아무것도 고르지 않으면 이만큼(초) 뒤�
 
 // 보기 중에서 정답을 고르는 학습 놀이의 공통 틀(숫자·한글·알파벳).
 // 하위 클래스가 구현할 것:
-//   introText, celebrateText
+//   introText, celebrateText      (또는 intro()/celebrate() 를 바꿔 음성 파일로 읽기)
 //   makeQuestion() → { choices: [{ label, correct }], ... }
 //   prompt(q) → Promise           문제 들려주기
 //   onCorrect(q, choice) → Promise 맞혔을 때 말하기
@@ -49,7 +49,15 @@ export class QuizScene {
     this.pulse = new Array(this.goal).fill(0);
     this.choices = [];
     this.state = 'intro';
-    this.after(speak(this.introText), () => this.next());
+    this.after(this.intro(), () => this.next());
+  }
+
+  intro() {
+    return speak(this.introText);
+  }
+
+  celebrate() {
+    return speak(this.celebrateText);
   }
 
   exit() {
@@ -104,7 +112,7 @@ export class QuizScene {
       const done = this.onCorrect(this.q, entry.choice).then(() => {
         if (this.score < this.goal) return;
         sfx.fanfare();
-        return speak(this.celebrateText);
+        return this.celebrate();
       });
       this.after(done, () => this.next());
     } else {

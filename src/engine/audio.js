@@ -171,12 +171,12 @@ export const sfx = {
 // 녹음된 소리(동물 울음소리 등). 앞뒤 무음을 잘라 내고 크기를 맞춰 재생한다.
 const SAMPLE_WINDOW = 0.05; // 초
 const SAMPLE_THRESHOLD = 0.15; // 가장 큰 구간 대비 이 비율 이상부터 '소리'로 본다
-const SAMPLE_MAX = 3; // 긴 녹음은 앞부분만(초)
+const SAMPLE_MAX = 3; // 긴 녹음은 앞부분만(초). 음성 문장처럼 긴 소리는 max 옵션으로 늘린다.
 const samples = new Map();
 let currentSample = null;
 
 // 50ms 구간별 소리 크기(RMS)로 소리가 시작·끝나는 곳을 찾는다(순간 잡음에 덜 흔들린다).
-function analyseSample(buffer) {
+function analyseSample(buffer, max) {
   const data = buffer.getChannelData(0);
   const win = Math.floor(buffer.sampleRate * SAMPLE_WINDOW);
   let peak = 0;
@@ -194,30 +194,31 @@ function analyseSample(buffer) {
   let first = rms.findIndex((v) => v > thr);
   if (first < 0) first = 0;
   // 최대 길이 안에서 마지막으로 소리가 난 곳까지만 재생해, 뒤에 남는 무음을 없앤다.
-  let last = Math.min(rms.length - 1, first + Math.floor(SAMPLE_MAX / SAMPLE_WINDOW));
+  let last = Math.min(rms.length - 1, first + Math.floor(max / SAMPLE_WINDOW));
   while (last > first && rms[last] <= thr) last--;
   const offset = Math.max(0, first * SAMPLE_WINDOW - 0.03);
   return { buffer, offset, duration: (last + 1) * SAMPLE_WINDOW + 0.1 - offset, gain: Math.min(3, 0.9 / (peak || 1)) };
 }
 
-export function loadSample(url) {
+export function loadSample(url, max = SAMPLE_MAX) {
   if (!ac) return Promise.resolve(null);
-  if (!samples.has(url)) {
+  const key = `${url}|${max}`;
+  if (!samples.has(key)) {
     const p = fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error(`${url} (${res.status})`);
         return res.arrayBuffer();
       })
       .then((bytes) => ac.decodeAudioData(bytes))
-      .then(analyseSample)
+      .then((buffer) => analyseSample(buffer, max))
       .catch((err) => {
+        // 실패도 기억해 두어 같은 파일을 계속 다시 요청하지 않는다(재생하는 쪽은 TTS로 대신함).
         console.warn('소리 파일을 불러오지 못했습니다:', err);
-        samples.delete(url);
         return null;
       });
-    samples.set(url, p);
+    samples.set(key, p);
   }
-  return samples.get(url);
+  return samples.get(key);
 }
 
 export function stopSample() {
@@ -230,8 +231,8 @@ export function stopSample() {
 }
 
 // 끝까지 재생되면(또는 중간에 멈추면) true, 재생할 수 없으면 false 로 resolve 된다.
-export async function playSample(url) {
-  const s = await loadSample(url);
+export async function playSample(url, { max = SAMPLE_MAX } = {}) {
+  const s = await loadSample(url, max);
   if (!s || !ready()) return false;
   stopSample();
   const t = ac.currentTime;

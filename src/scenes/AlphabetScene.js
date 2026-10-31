@@ -1,17 +1,30 @@
 import { QuizScene, questionCard } from './QuizScene.js';
 import { speakerIcon } from '../engine/icons.js';
-import { speak } from '../engine/voice.js';
+import { preloadLines, sayLine } from '../engine/voice.js';
+import { LETTERS, PHRASES } from '../engine/voiceLines.js';
 import { delay, pick, shuffle } from '../engine/util.js';
 
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const CHOICE_COUNT = 4;
 
-const sayLetter = (letter) => speak(letter, { lang: 'en-US' });
+// 원어민 발음 음성 파일로 읽는다(없으면 기기 영어 TTS).
+const sayLetter = (letter) => sayLine('letters', letter, letter, { lang: 'en-US' });
+const sayPhrase = (id) => sayLine('phrases', id, PHRASES[id]);
 
 // 알파벳 놀이: 읽어 주는 알파벳(대문자) 고르기
 export class AlphabetScene extends QuizScene {
-  introText = '알파벳을 잘 듣고 맞는 글자를 골라 보세요!';
-  celebrateText = '알파벳 박사! 정말 잘했어요!';
+  enter() {
+    preloadLines('letters', LETTERS);
+    preloadLines('phrases', ['alphabet-intro', 'alphabet-celebrate', 'correct', 'listen-again']);
+    super.enter();
+  }
+
+  intro() {
+    return sayPhrase('alphabet-intro');
+  }
+
+  celebrate() {
+    return sayPhrase('alphabet-celebrate');
+  }
 
   makeQuestion() {
     const letter = pick(LETTERS.filter((l) => l !== this.lastLetter));
@@ -29,14 +42,14 @@ export class AlphabetScene extends QuizScene {
   }
 
   onCorrect(q) {
-    return sayLetter(q.letter).then(() => speak('맞아요!'));
+    return sayLetter(q.letter).then(() => sayPhrase('correct'));
   }
 
   // 고른 글자를 읽어 주고, 문제 글자를 다시 들려준다.
   onWrong(q, choice) {
     return sayLetter(choice.label)
       .then(() => delay(400))
-      .then(() => speak('다시 들어 볼까요?'))
+      .then(() => sayPhrase('listen-again'))
       .then(() => this.prompt(q));
   }
 
