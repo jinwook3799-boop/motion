@@ -5,6 +5,11 @@ import { speak } from '../engine/voice.js';
 
 const LINE_LIFE = 6; // 선이 남아 있는 시간(초)
 const FADE = 1.5; // 사라지기 전 반짝이는 시간(초)
+// 검지를 폈는지 판단: (손목→검지 끝) / (손목→검지 가운데 마디) 비율.
+// 펴면 1.4 이상, 주먹을 쥐면 1 안팎. 두 기준을 달리 둬서 경계에서 깜빡이지 않게 한다.
+const PEN_DOWN_RATIO = 1.25;
+const PEN_UP_RATIO = 1.08;
+const SMOOTHING = 0.45; // 낮을수록 손끝 떨림이 줄지만 선이 늦게 따라온다
 const DROPS = [
   { color: 'rainbow', name: '무지개!' },
   { color: COLORS.red, name: '빨강!' },
@@ -14,9 +19,12 @@ const DROPS = [
   { color: COLORS.purple, name: '보라!' },
 ];
 
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
 // 모듈 6. 모션 드로잉(무지개 선)
 export class DrawingScene {
   hideTrail = true;
+  hideCursor = true;
 
   constructor(game) {
     this.game = game;
@@ -33,10 +41,13 @@ export class DrawingScene {
     this.t = 0;
     this.strokes = [];
     this.active = new Map();
+    this.penDown = new Map();
+    this.smooth = new Map();
+    this.pens = [];
     this.color = 'rainbow';
     this.hue = 0;
     this.twinkleT = 0;
-    speak('손가락으로 쓱쓱 그림을 그려 봐요! 물방울을 만지면 색깔이 바뀌어요!');
+    speak('손가락을 쭉 펴면 그림이 그려지고, 주먹을 쥐면 멈춰요! 물방울을 만지면 색깔이 바뀌어요!');
   }
 
   dropAt(p) {
@@ -53,20 +64,51 @@ export class DrawingScene {
     this.game.particles.burst(drop.x, drop.y, { count: 16, colors, speed: this.game.unit * 0.4, size: this.game.unit * 0.012, gravity: 400 });
   }
 
+  // 손마다 펜 하나: 검지 끝 위치(떨림 보정) + 검지를 폈는지(펜 내림) 여부
+  readPens(input) {
+    const unit = this.game.unit;
+    const pens = [];
+    input.hands.forEach((hand, i) => {
+      const key = `h${i}`;
+      const [wrist, pip, tip] = [hand.points[0], hand.points[6], hand.points[8]];
+      const ratio = dist(wrist, tip) / Math.max(1, dist(wrist, pip));
+      const down = ratio > (this.penDown.get(key) ? PEN_UP_RATIO : PEN_DOWN_RATIO);
+      this.penDown.set(key, down);
+      pens.push({ key, x: tip.x, y: tip.y, down });
+    });
+    const mouse = input.pointers.find((p) => p.key === 'mouse');
+    if (mouse) pens.push({ key: 'mouse', x: mouse.x, y: mouse.y, down: true });
+
+    for (const pen of pens) {
+      const prev = this.smooth.get(pen.key);
+      if (prev && dist(prev, pen) < unit * 0.25) {
+        pen.x = prev.x + (pen.x - prev.x) * SMOOTHING;
+        pen.y = prev.y + (pen.y - prev.y) * SMOOTHING;
+      }
+      this.smooth.set(pen.key, { x: pen.x, y: pen.y });
+    }
+    const keys = new Set(pens.map((p) => p.key));
+    for (const key of [...this.smooth.keys()]) if (!keys.has(key)) this.smooth.delete(key);
+    return pens;
+  }
+
   update(dt, input) {
     this.t += dt;
     this.twinkleT -= dt;
     const unit = this.game.unit;
     for (const d of this.drops) d.pulse = Math.max(0, d.pulse - dt * 3);
 
+    this.pens = this.readPens(input);
     const seen = new Set();
-    for (const p of input.pointers) {
-      if (p.part !== 'tip') continue;
+    for (const p of this.pens) {
+      if (!this.game.inZone(p)) continue;
+      // 물방울은 손가락을 폈든 접었든 닿기만 하면 색이 바뀐다.
       const drop = this.dropAt(p);
       if (drop) {
         this.pickColor(drop);
         continue;
       }
+      if (!p.down) continue;
       let stroke = this.active.get(p.key);
       const last = stroke?.points.at(-1);
       const dist = last ? Math.hypot(p.x - last.x, p.y - last.y) : 0;
@@ -145,6 +187,25 @@ export class DrawingScene {
         ctx.fill();
       }
       paintDrop(ctx, d.x, d.y, r, d.color);
+    }
+
+    // 펜 커서: 그리는 중이면 지금 색으로 채운 동그라미, 쉬는 중이면 빈 동그라미
+    for (const p of this.pens) {
+      ctx.save();
+      ctx.lineWidth = unit * 0.008;
+      ctx.strokeStyle = '#fff';
+      ctx.beginPath();
+      if (p.down) {
+        ctx.arc(p.x, p.y, width * 0.9, 0, Math.PI * 2);
+        ctx.fillStyle = this.color === 'rainbow' ? `hsl(${this.hue}, 95%, 58%)` : this.color;
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = 0.85;
+        ctx.setLineDash([unit * 0.012, unit * 0.01]);
+        ctx.arc(p.x, p.y, unit * 0.03, 0, Math.PI * 2);
+      }
+      ctx.stroke();
+      ctx.restore();
     }
   }
 }

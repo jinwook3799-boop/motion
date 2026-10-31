@@ -188,7 +188,8 @@ export function cow(ctx, x, y, s) {
   smile(ctx, x, y - s * 0.05, s * 0.9);
 }
 
-// 동물 소리 찾기 놀이용 정보. sound 는 TTS로 읽는 의성어.
+// 동물 소리 찾기 놀이용 정보. 실제 울음소리는 public/sounds/animals/<id>.mp3,
+// sound 는 소리 파일을 못 불러왔을 때 TTS로 대신 읽는 의성어.
 export const ANIMAL_INFO = {
   lion: { draw: lion, name: '사자', sound: '어흥', color: COLORS.orange },
   cat: { draw: cat, name: '고양이', sound: '야옹 야옹', color: COLORS.orange },

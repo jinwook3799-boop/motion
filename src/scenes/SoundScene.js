@@ -2,12 +2,16 @@ import { HoverButton } from '../engine/HoverButton.js';
 import { star, COLORS, RAINBOW } from '../engine/draw.js';
 import { ANIMAL_INFO } from '../engine/animals.js';
 import { questionMark } from '../engine/icons.js';
-import { sfx } from '../engine/audio.js';
+import { loadSample, playSample, sfx, stopSample } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
 
 const GOAL = 5;
 const CARD_COUNT = 4;
-const REPLAY_AFTER = 9; // 초
+const REPLAY_AFTER = 10; // 초
+const ASK_DELAY = 1000; // 울음소리가 끝나고 질문하기까지 쉬는 시간(ms)
+
+const soundUrl = (id) => `${import.meta.env.BASE_URL}sounds/animals/${id}.mp3`;
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const shuffle = (arr) => {
   const a = [...arr];
@@ -17,6 +21,12 @@ const shuffle = (arr) => {
   }
   return a;
 };
+
+// 실제 울음소리를 들려준다. 파일을 못 쓰면 의성어를 읽어 준다.
+async function animalSound(id) {
+  if (await playSample(soundUrl(id))) return;
+  await speak(`${ANIMAL_INFO[id].sound}~`);
+}
 
 // 모듈 4. 동물 소리 듣고 찾아가기
 export class SoundScene {
@@ -46,24 +56,27 @@ export class SoundScene {
   }
 
   enter() {
-    this.session = Symbol('session');
+    this.token = 0;
+    this.active = true;
     this.state = 'intro';
     this.score = 0;
     this.cards = [];
     this.slotPulse = new Array(GOAL).fill(0);
+    for (const id of Object.keys(ANIMAL_INFO)) loadSample(soundUrl(id));
     this.after(speak('동물 소리를 잘 듣고, 그 동물에게 손을 쭉 뻗어 보세요!'), () => this.newRound());
   }
 
-  // 음성이 끝난 뒤 실행하되, 그사이 장면이 바뀌었으면 무시한다.
-  after(promise, fn) {
-    const session = this.session;
-    promise.then(() => {
-      if (this.session === session && this.game.scene === this) fn();
-    });
+  exit() {
+    this.active = false;
+    stopSample();
   }
 
-  exit() {
-    this.session = null;
+  // promise 가 끝난 뒤 fn 을 실행한다. 그사이 장면을 떠났거나 다음 단계로 넘어갔으면(token 변경) 무시한다.
+  after(promise, fn) {
+    const token = ++this.token;
+    promise.then(() => {
+      if (this.active && this.token === token) fn();
+    });
   }
 
   newRound() {
@@ -87,11 +100,14 @@ export class SoundScene {
     this.playTarget();
   }
 
+  // 울음소리 → 1초 쉬고 → "나는 누구일까요?"
   playTarget() {
     if (this.state !== 'listen') return;
     this.replayT = REPLAY_AFTER;
-    const info = ANIMAL_INFO[this.target];
-    speak(`${info.sound}~ 나는 누구일까요?`);
+    this.after(
+      animalSound(this.target).then(() => delay(ASK_DELAY)),
+      () => speak('나는 누구일까요?'),
+    );
   }
 
   choose(card) {
@@ -105,25 +121,30 @@ export class SoundScene {
       this.score++;
       sfx.success();
       particles.burst(x, y, { count: 40, colors: RAINBOW, speed: unit * 0.8, size: unit * 0.02, shape: 'confetti' });
-      const done = speak(`맞아요! ${card.info.sound}~ ${card.info.name}예요!`);
-      if (this.score >= GOAL) {
-        this.after(done, () => {
-          sfx.fanfare();
-          this.after(speak('동물 소리 박사! 최고예요!'), () => this.newRound());
-        });
-      } else {
-        this.after(done, () => this.newRound());
-      }
+      const finished = this.score >= GOAL;
+      this.after(
+        animalSound(card.id)
+          .then(() => speak(`맞아요! ${card.info.name}예요!`))
+          .then(() => {
+            if (!finished) return;
+            sfx.fanfare();
+            return speak('동물 소리 박사! 최고예요!');
+          }),
+        () => this.newRound(),
+      );
     } else {
-      // 틀려도 그 동물 소리를 알려 주며 배우게 한다.
+      // 틀려도 그 동물 소리를 들려주며 배우게 한다.
       this.state = 'wrong';
       card.shake = 1;
       card.button.disabled = true;
       sfx.oops();
-      this.after(speak(`이건 ${card.info.sound}~ ${card.info.name}예요. 다시 들어 볼까요?`), () => {
-        this.state = 'listen';
-        this.playTarget();
-      });
+      this.after(
+        animalSound(card.id).then(() => speak(`이건 ${card.info.name}예요. 다시 들어 볼까요?`)),
+        () => {
+          this.state = 'listen';
+          this.playTarget();
+        },
+      );
     }
   }
 

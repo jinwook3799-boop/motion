@@ -24,7 +24,7 @@ const MOTION_H = 48;
 const MOTION_PIXEL_DIFF = 32; // 이 이상 밝기가 바뀐 픽셀을 '움직임'으로 본다
 
 // 카메라 → 인식(손 또는 몸) → 장면 업데이트 → 그리기를 매 프레임 반복하는 게임 루프.
-// 장면은 tracker('hands' | 'pose'), needsMotion, showAvatar, hideTrail 속성으로 필요한 것을 알린다.
+// 장면은 tracker('hands' | 'pose'), needsMotion, showAvatar, hideTrail, hideCursor 속성으로 필요한 것을 알린다.
 export class Game {
   constructor({ canvas, video, trackers }) {
     this.canvas = canvas;
@@ -397,6 +397,10 @@ export class Game {
           ctx.stroke();
         }
       }
+    }
+    if (this.scene.hideCursor) {
+      ctx.restore();
+      return;
     }
     const tips = this.hands.map((h) => h.tip);
     if (this.pose) for (const i of [P.lWrist, P.rWrist]) if (visible(this.pose[i])) tips.push(this.pose[i]);

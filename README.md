@@ -51,6 +51,8 @@ npm run preview   # 빌드 결과를 HTTPS로 미리 보기
 | `src/engine/animals.js`, `icons.js`, `draw.js` | 캔버스 그림(동물, 아이콘) |
 | `src/scenes/*` | 메뉴와 6개 놀이 장면 |
 
+동물 울음소리는 Wikimedia Commons 의 공개 라이선스 녹음입니다. 출처와 라이선스는 [public/sounds/animals/CREDITS.md](public/sounds/animals/CREDITS.md)에 있습니다.
+
 동작 판정 기준값(점프 높이, 움직임 임계값 등)은 각 장면 파일 위쪽 상수로 모여 있어 실제 아이들에 맞춰 조정할 수 있습니다.
 | `src/App.jsx` | 시작·로딩·카메라 거부 화면 |
 

@@ -140,6 +140,91 @@ export const sfx = {
   },
 };
 
+// 녹음된 소리(동물 울음소리 등). 앞뒤 무음을 잘라 내고 크기를 맞춰 재생한다.
+const SAMPLE_WINDOW = 0.05; // 초
+const SAMPLE_THRESHOLD = 0.15; // 가장 큰 구간 대비 이 비율 이상부터 '소리'로 본다
+const SAMPLE_MAX = 3; // 긴 녹음은 앞부분만(초)
+const samples = new Map();
+let currentSample = null;
+
+// 50ms 구간별 소리 크기(RMS)로 소리가 시작·끝나는 곳을 찾는다(순간 잡음에 덜 흔들린다).
+function analyseSample(buffer) {
+  const data = buffer.getChannelData(0);
+  const win = Math.floor(buffer.sampleRate * SAMPLE_WINDOW);
+  let peak = 0;
+  const rms = [];
+  for (let i = 0; i < data.length; i += win) {
+    let sum = 0;
+    const end = Math.min(data.length, i + win);
+    for (let j = i; j < end; j++) {
+      sum += data[j] * data[j];
+      peak = Math.max(peak, Math.abs(data[j]));
+    }
+    rms.push(Math.sqrt(sum / (end - i)));
+  }
+  const thr = Math.max(...rms) * SAMPLE_THRESHOLD;
+  let first = rms.findIndex((v) => v > thr);
+  if (first < 0) first = 0;
+  // 최대 길이 안에서 마지막으로 소리가 난 곳까지만 재생해, 뒤에 남는 무음을 없앤다.
+  let last = Math.min(rms.length - 1, first + Math.floor(SAMPLE_MAX / SAMPLE_WINDOW));
+  while (last > first && rms[last] <= thr) last--;
+  const offset = Math.max(0, first * SAMPLE_WINDOW - 0.03);
+  return { buffer, offset, duration: (last + 1) * SAMPLE_WINDOW + 0.1 - offset, gain: Math.min(3, 0.9 / (peak || 1)) };
+}
+
+export function loadSample(url) {
+  if (!ac) return Promise.resolve(null);
+  if (!samples.has(url)) {
+    const p = fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`${url} (${res.status})`);
+        return res.arrayBuffer();
+      })
+      .then((bytes) => ac.decodeAudioData(bytes))
+      .then(analyseSample)
+      .catch((err) => {
+        console.warn('소리 파일을 불러오지 못했습니다:', err);
+        samples.delete(url);
+        return null;
+      });
+    samples.set(url, p);
+  }
+  return samples.get(url);
+}
+
+export function stopSample() {
+  try {
+    currentSample?.stop();
+  } catch {
+    // 이미 끝난 소리
+  }
+  currentSample = null;
+}
+
+// 끝까지 재생되면(또는 중간에 멈추면) true, 재생할 수 없으면 false 로 resolve 된다.
+export async function playSample(url) {
+  const s = await loadSample(url);
+  if (!s || !ready()) return false;
+  stopSample();
+  const t = ac.currentTime;
+  const dur = s.duration;
+  const src = ac.createBufferSource();
+  src.buffer = s.buffer;
+  const g = ac.createGain();
+  g.gain.setValueAtTime(s.gain, t);
+  g.gain.setValueAtTime(s.gain, t + Math.max(0, dur - 0.2));
+  g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  src.connect(g).connect(master);
+  src.start(t, s.offset, dur);
+  currentSample = src;
+  return new Promise((resolve) => {
+    src.onended = () => {
+      if (currentSample === src) currentSample = null;
+      resolve(true);
+    };
+  });
+}
+
 // 신호등 놀이용 신나는 반복 음악(룩어헤드 스케줄러로 박자를 정확히 맞춘다)
 const MELODY = [523.25, 0, 659.25, 0, 783.99, 659.25, 0, 523.25, 587.33, 0, 698.46, 0, 880, 698.46, 0, 587.33];
 const BASS = [130.81, 0, 0, 0, 196, 0, 0, 0, 146.83, 0, 0, 0, 220, 0, 0, 0];

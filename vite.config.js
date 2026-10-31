@@ -31,7 +31,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,wasm,task}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,wasm,task,mp3}'],
         // 예비용 non-SIMD 런타임은 거의 쓰이지 않으므로 미리 캐시하지 않는다.
         globIgnores: ['**/vision_wasm_nosimd_internal.*'],
         maximumFileSizeToCacheInBytes: 30 * 1024 * 1024,
