@@ -13,6 +13,15 @@ import { TrafficScene } from '../scenes/TrafficScene.js';
 import { SoundScene } from '../scenes/SoundScene.js';
 import { InstrumentScene } from '../scenes/InstrumentScene.js';
 import { DrawingScene } from '../scenes/DrawingScene.js';
+import { WhackScene } from '../scenes/WhackScene.js';
+import { HiddenScene } from '../scenes/HiddenScene.js';
+import { MathScene } from '../scenes/MathScene.js';
+import { HangulScene } from '../scenes/HangulScene.js';
+import { AlphabetScene } from '../scenes/AlphabetScene.js';
+import { RunnerScene } from '../scenes/RunnerScene.js';
+import { TrainScene } from '../scenes/TrainScene.js';
+import { PoseScene } from '../scenes/PoseScene.js';
+import { StarsScene } from '../scenes/StarsScene.js';
 
 const PALM_IDS = [0, 5, 9, 13, 17];
 const POSE_POINTERS = { lw: P.lWrist, rw: P.rWrist, li: P.lIndex, ri: P.rIndex };
@@ -75,11 +84,20 @@ export class Game {
     this.scenes = {
       menu: new MenuScene(this),
       balloon: new BalloonScene(this),
+      whack: new WhackScene(this),
       mimic: new MimicScene(this),
       traffic: new TrafficScene(this),
+      runner: new RunnerScene(this),
+      train: new TrainScene(this),
+      pose: new PoseScene(this),
+      stars: new StarsScene(this),
       sound: new SoundScene(this),
       instrument: new InstrumentScene(this),
       drawing: new DrawingScene(this),
+      hidden: new HiddenScene(this),
+      math: new MathScene(this),
+      hangul: new HangulScene(this),
+      alphabet: new AlphabetScene(this),
     };
 
     window.addEventListener('resize', this.resize);

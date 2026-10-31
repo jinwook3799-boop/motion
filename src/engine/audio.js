@@ -134,6 +134,34 @@ export const sfx = {
     if (!ready()) return;
     tone({ freq: 1800 + Math.random() * 1200, dur: 0.12, gain: 0.04 });
   },
+  // 두더지를 잡았을 때 "콩!"
+  bonk() {
+    if (!ready()) return;
+    tone({ type: 'triangle', freq: 620, freqEnd: 160, dur: 0.14, gain: 0.55, attack: 0.002 });
+    noise({ dur: 0.05, gain: 0.3, filter: 'lowpass', freq: 1500 });
+    tone({ freq: 900, freqEnd: 1800, start: 0.06, dur: 0.14, gain: 0.2 });
+  },
+  // 두더지가 쏙 나올 때
+  peek() {
+    if (!ready()) return;
+    tone({ freq: 480, freqEnd: 900, dur: 0.1, gain: 0.12 });
+  },
+  // 기차 "뿌우~"
+  whistle() {
+    if (!ready()) return;
+    tone({ freq: 784, dur: 0.7, gain: 0.18, attack: 0.05 });
+    tone({ freq: 988, dur: 0.7, gain: 0.14, attack: 0.05 });
+    tone({ type: 'triangle', freq: 1175, dur: 0.6, gain: 0.06, attack: 0.05 });
+  },
+  // 달리는 걸음마다 "칙"
+  chug() {
+    if (!ready()) return;
+    noise({ dur: 0.12, gain: 0.18, filter: 'bandpass', freq: 2500, q: 0.7, attack: 0.01 });
+  },
+  jump() {
+    if (!ready()) return;
+    tone({ freq: 300, freqEnd: 900, dur: 0.22, gain: 0.3 });
+  },
   whoosh() {
     if (!ready()) return;
     noise({ dur: 0.35, gain: 0.2, freq: 1200, q: 0.6, attack: 0.12 });

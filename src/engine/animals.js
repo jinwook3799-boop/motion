@@ -1,5 +1,5 @@
 // 동물 친구 그림. 모두 (ctx, 중심 x, 중심 y, 크기 s, 시간 t) 형식이며 s ≈ 몸 반지름.
-import { smile, COLORS } from './draw.js';
+import { smile, star as drawStar, COLORS } from './draw.js';
 
 const circle = (ctx, x, y, r, fill) => {
   ctx.fillStyle = fill;
@@ -186,6 +186,47 @@ export function cow(ctx, x, y, s) {
   ellipse(ctx, x - s * 0.2, y + s * 0.5, s * 0.07, s * 0.1, '#E58FA5');
   ellipse(ctx, x + s * 0.2, y + s * 0.5, s * 0.07, s * 0.1, '#E58FA5');
   smile(ctx, x, y - s * 0.05, s * 0.9);
+}
+
+// 두더지. dizzy 면 어지러운 눈과 머리 위를 도는 별.
+export function mole(ctx, x, y, s, dizzy = false, t = 0) {
+  const fur = '#9C6B4A';
+  ellipse(ctx, x, y, s, s * 1.15, fur);
+  ellipse(ctx, x, y + s * 0.35, s * 0.62, s * 0.62, '#C99A73');
+  ellipse(ctx, x - s * 0.55, y + s * 0.75, s * 0.22, s * 0.14, '#F2B8A0');
+  ellipse(ctx, x + s * 0.55, y + s * 0.75, s * 0.22, s * 0.14, '#F2B8A0');
+
+  ctx.strokeStyle = COLORS.ink;
+  ctx.fillStyle = COLORS.ink;
+  ctx.lineWidth = s * 0.07;
+  ctx.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    const ex = x + side * s * 0.33;
+    const ey = y - s * 0.35;
+    if (dizzy) {
+      ctx.beginPath();
+      ctx.arc(ex, ey, s * 0.1, t * 10, t * 10 + Math.PI * 1.6);
+      ctx.stroke();
+    } else {
+      circle(ctx, ex, ey, s * 0.09, COLORS.ink);
+      circle(ctx, ex + s * 0.03, ey - s * 0.03, s * 0.03, '#fff');
+    }
+  }
+  ellipse(ctx, x, y - s * 0.1, s * 0.2, s * 0.14, '#FF8FA3');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - s * 0.1, y + s * 0.02, s * 0.09, s * 0.13);
+  ctx.fillRect(x + s * 0.01, y + s * 0.02, s * 0.09, s * 0.13);
+  ctx.globalAlpha *= 0.7;
+  circle(ctx, x - s * 0.55, y - s * 0.08, s * 0.12, COLORS.cheek);
+  circle(ctx, x + s * 0.55, y - s * 0.08, s * 0.12, COLORS.cheek);
+  ctx.globalAlpha /= 0.7;
+
+  if (dizzy) {
+    for (let i = 0; i < 3; i++) {
+      const a = t * 6 + (i * Math.PI * 2) / 3;
+      drawStar(ctx, x + Math.cos(a) * s * 0.75, y - s * 1.25 + Math.sin(a) * s * 0.2, s * 0.16, COLORS.yellow);
+    }
+  }
 }
 
 // 동물 소리 찾기 놀이용 정보. 실제 울음소리는 public/sounds/animals/<id>.mp3,

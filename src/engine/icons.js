@@ -148,6 +148,155 @@ export function buddy(ctx, x, y, s, phase, frozen) {
   ctx.restore();
 }
 
+// 화면 위쪽 가운데의 별 게이지(모은 별 수)
+export function starGauge(ctx, game, goal, score, pulse) {
+  const { w, h, unit } = game;
+  const s = Math.min(unit * 0.035, w / (goal * 3));
+  const gap = s * 2.5;
+  const y = h * 0.055 + s;
+  const x0 = w / 2 - (gap * (goal - 1)) / 2;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.beginPath();
+  ctx.roundRect(x0 - s * 1.6, y - s * 1.5, gap * (goal - 1) + s * 3.2, s * 3, s * 1.5);
+  ctx.fill();
+  for (let i = 0; i < goal; i++) {
+    const filled = i < score;
+    star(ctx, x0 + i * gap, y, s * (1 + pulse[i] * 0.6), filled ? COLORS.yellow : 'rgba(61,44,46,0.15)', filled ? '#F4A100' : null);
+  }
+}
+
+// 장난감 뿅망치. swing(0~1)만큼 내려친 모습
+export function hammer(ctx, x, y, s, swing = 0) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.6 + swing * 0.9);
+  ctx.fillStyle = '#E9C893';
+  roundRect(ctx, -s * 0.1, -s * 0.2, s * 0.2, s * 1.2, s * 0.08);
+  ctx.fill();
+  ctx.fillStyle = COLORS.red;
+  roundRect(ctx, -s * 0.55, -s * 0.55, s * 1.1, s * 0.5, s * 0.2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.yellow;
+  roundRect(ctx, -s * 0.6, -s * 0.58, s * 0.18, s * 0.56, s * 0.08);
+  ctx.fill();
+  roundRect(ctx, s * 0.42, -s * 0.58, s * 0.18, s * 0.56, s * 0.08);
+  ctx.fill();
+  ctx.restore();
+}
+
+export function heart(ctx, x, y, s, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.85);
+  ctx.bezierCurveTo(x - s * 1.3, y - s * 0.05, x - s * 0.65, y - s * 1.05, x, y - s * 0.4);
+  ctx.bezierCurveTo(x + s * 0.65, y - s * 1.05, x + s * 1.3, y - s * 0.05, x, y + s * 0.85);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.45, y - s * 0.35, s * 0.12, s * 0.2, -0.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+export function apple(ctx, x, y, s) {
+  ctx.strokeStyle = '#7A4E2D';
+  ctx.lineWidth = s * 0.12;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x, y - s * 0.6);
+  ctx.lineTo(x + s * 0.1, y - s * 1.0);
+  ctx.stroke();
+  ctx.fillStyle = '#5BC85B';
+  ctx.beginPath();
+  ctx.ellipse(x + s * 0.38, y - s * 0.88, s * 0.3, s * 0.14, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.red;
+  ctx.beginPath();
+  ctx.arc(x - s * 0.38, y, s * 0.62, 0, Math.PI * 2);
+  ctx.arc(x + s * 0.38, y, s * 0.62, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.55, y - s * 0.25, s * 0.12, s * 0.22, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  smile(ctx, x, y + s * 0.1, s * 0.85);
+}
+
+export function fish(ctx, x, y, s, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x + s * 0.55, y);
+  ctx.lineTo(x + s * 1.1, y - s * 0.5);
+  ctx.lineTo(x + s * 1.1, y + s * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.1, y, s * 0.8, s * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(x + s * 0.05, y + s * 0.15, s * 0.4, s * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x - s * 0.45, y - s * 0.12, s * 0.17, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.ink;
+  ctx.beginPath();
+  ctx.arc(x - s * 0.48, y - s * 0.12, s * 0.09, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = s * 0.07;
+  ctx.beginPath();
+  ctx.arc(x - s * 0.62, y + s * 0.12, s * 0.12, 0.2, Math.PI * 0.8);
+  ctx.stroke();
+}
+
+export function magnifier(ctx, r) {
+  ctx.strokeStyle = '#7A4E2D';
+  ctx.lineWidth = r * 0.16;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(r * 0.18, r * 0.18);
+  ctx.lineTo(r * 0.55, r * 0.55);
+  ctx.stroke();
+  ctx.fillStyle = '#CDE7FF';
+  ctx.strokeStyle = COLORS.blue;
+  ctx.lineWidth = r * 0.1;
+  ctx.beginPath();
+  ctx.arc(-r * 0.12, -r * 0.12, r * 0.38, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  star(ctx, -r * 0.12, -r * 0.12, r * 0.18, COLORS.yellow);
+}
+
+// 소리 다시 듣기 아이콘
+export function speakerIcon(ctx, r, t = 0) {
+  ctx.fillStyle = COLORS.purple;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.4, -r * 0.15);
+  ctx.lineTo(-r * 0.2, -r * 0.15);
+  ctx.lineTo(r * 0.05, -r * 0.38);
+  ctx.lineTo(r * 0.05, r * 0.38);
+  ctx.lineTo(-r * 0.2, r * 0.15);
+  ctx.lineTo(-r * 0.4, r * 0.15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = r * 0.08;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 2; i++) {
+    ctx.globalAlpha = 0.6 + 0.4 * Math.max(0, Math.sin(t * 4 - i));
+    ctx.beginPath();
+    ctx.arc(r * 0.05, 0, r * (0.25 + i * 0.17), -0.7, 0.7);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 export function questionMark(ctx, r, t = 0) {
   ctx.fillStyle = COLORS.purple;
   ctx.beginPath();
