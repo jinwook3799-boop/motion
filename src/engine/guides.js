@@ -4,6 +4,7 @@ import { balloon, drum, progressRing, star, COLORS } from './draw.js';
 import { apple, heart, speakerIcon, trafficLight } from './icons.js';
 import { frog, lion, mole } from './animals.js';
 import { campfire, car, cone, flyingBird, kid, log, POSE_SHAPES, waterGun } from './scenery.js';
+import { consonantGuide, vowelGuide } from '../scenes/BodyLetterScene.js';
 import { guide as bubbleGuide } from '../scenes/BubbleScene.js';
 import { guide as fishGuide } from '../scenes/FishScene.js';
 import { guide as rhythmGuide } from '../scenes/RhythmScene.js';
@@ -80,6 +81,8 @@ function chooseDemo(ctx, s, t, labels, question) {
 }
 
 export const GUIDES = {
+  bodyConsonant: consonantGuide,
+  bodyVowel: vowelGuide,
   bubble: bubbleGuide,
   fish: fishGuide,
   rhythm: rhythmGuide,

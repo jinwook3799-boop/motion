@@ -4,6 +4,7 @@ import { frog, lion, mole, rabbit } from '../engine/animals.js';
 import { campfire, car, cone, log, poseKid, train, waterGun } from '../engine/scenery.js';
 import { heart, homeIcon, magnifier, rainbowIcon, trafficLight } from '../engine/icons.js';
 import { sfx } from '../engine/audio.js';
+import { consonantIcon, vowelIcon } from './BodyLetterScene.js';
 import { menuIcon as bubbleIcon } from './BubbleScene.js';
 import { menuIcon as fishIcon } from './FishScene.js';
 import { menuIcon as rhythmIcon } from './RhythmScene.js';
@@ -206,6 +207,8 @@ const GAMES = {
   countjump: { name: '숫자 점프!', color: COLORS.orange, icon: countjumpIcon },
   shape: { name: '몸으로 도형 만들기!', color: COLORS.green, icon: shapeIcon },
   face: { name: '표정 따라 하기!', color: COLORS.yellow, icon: faceIcon },
+  bodyConsonant: { name: '몸으로 자음 만들기!', color: COLORS.red, icon: consonantIcon },
+  bodyVowel: { name: '몸으로 모음 만들기!', color: COLORS.purple, icon: vowelIcon },
   math: { name: '숫자 놀이!', color: COLORS.orange, icon: textIcon('1+2', COLORS.orange) },
   hangul: { name: '한글 놀이!', color: COLORS.green, icon: textIcon('가', COLORS.green) },
   alphabet: { name: '알파벳 놀이!', color: COLORS.pink, icon: textIcon('ABC', COLORS.pink) },
@@ -217,7 +220,7 @@ const CATEGORIES = [
   { name: '몸 놀이!', color: COLORS.green, icon: (ctx, r, t) => poseKid(ctx, 0, r * 0.12, r * 0.3, 'star', t), games: ['traffic', 'runner', 'train', 'stars', 'car', 'balance'] },
   { name: '따라 하기 놀이!', color: COLORS.purple, icon: mirrorIcon, games: ['mimic', 'pose', 'sequence', 'face', 'cross'] },
   { name: '함께 놀이!', color: COLORS.pink, icon: togetherIcon, games: ['highfive', 'rally', 'mirror', 'team', 'water', 'shape'] },
-  { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet', 'sound', 'hidden', 'countjump'] },
+  { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet', 'bodyConsonant', 'bodyVowel', 'countjump', 'sound', 'hidden'] },
 ];
 
 // 글자 없는 메뉴: 그림 위에 손을 올리면 이름을 말해 주고, 계속 올려 두면 고른다.

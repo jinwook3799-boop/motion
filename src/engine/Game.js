@@ -30,6 +30,7 @@ import { MirrorScene } from '../scenes/MirrorScene.js';
 import { TeamBalloonScene } from '../scenes/TeamBalloonScene.js';
 import { WaterScene } from '../scenes/WaterScene.js';
 import { CarScene } from '../scenes/CarScene.js';
+import { BodyLetterScene } from '../scenes/BodyLetterScene.js';
 import { BubbleScene } from '../scenes/BubbleScene.js';
 import { FishScene } from '../scenes/FishScene.js';
 import { RhythmScene } from '../scenes/RhythmScene.js';
@@ -120,6 +121,8 @@ export class Game {
       pose: new PoseScene(this),
       stars: new StarsScene(this),
       car: new CarScene(this),
+      bodyConsonant: new BodyLetterScene(this, 'consonant'),
+      bodyVowel: new BodyLetterScene(this, 'vowel'),
       bubble: new BubbleScene(this),
       fish: new FishScene(this),
       rhythm: new RhythmScene(this),
