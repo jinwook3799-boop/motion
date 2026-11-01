@@ -3,7 +3,7 @@ import { childSilhouette, lightBulb, star, COLORS } from './draw.js';
 import { homeIcon } from './icons.js';
 import { HoverButton } from './HoverButton.js';
 import { bodyCenter, drawAvatar, visible, P } from './pose.js';
-import { loadTracker } from './trackers.js';
+import { loadTracker, trackerDelegate } from './trackers.js';
 import { drawGuide, GUIDES } from './guides.js';
 import { delay } from './util.js';
 import { music, sfx, song } from './audio.js';
@@ -30,6 +30,11 @@ import { MirrorScene } from '../scenes/MirrorScene.js';
 import { TeamBalloonScene } from '../scenes/TeamBalloonScene.js';
 import { WaterScene } from '../scenes/WaterScene.js';
 import { CarScene } from '../scenes/CarScene.js';
+import { SoccerScene } from '../scenes/SoccerScene.js';
+import { BaseballScene } from '../scenes/BaseballScene.js';
+import { GolfScene } from '../scenes/GolfScene.js';
+import { SliceScene } from '../scenes/SliceScene.js';
+import { SkewerScene } from '../scenes/SkewerScene.js';
 import { BodyLetterScene } from '../scenes/BodyLetterScene.js';
 import { BubbleScene } from '../scenes/BubbleScene.js';
 import { FishScene } from '../scenes/FishScene.js';
@@ -57,6 +62,13 @@ const PERSON_COAST = 0.6; // 놓친 아이를 마지막 자세로 기억하는 �
 const HAND_MATCH = 0.4; // 이 거리(화면 짧은 변 배) 안이면 같은 손으로 본다
 const PERSON_MATCH = 0.45;
 const SWEEP_KEEP = 0.25; // 지난 위치를 이 시간 안에 본 손만 '지나간 길' 판정에 쓴다
+const LIGHT_CHECK_EVERY = 3; // 방 밝기 확인 간격(초)
+// 손 별(커서) 보이기: 빠르게 움직여 화면이 흐려지면 인식을 잠깐 놓치는데, 그때 별이 바로 사라지지 않게 한다.
+const CURSOR_HOLD = 0.6; // 놓친 손의 별을 남겨 두는 시간(초) — 이 동안 서서히 흐려진다
+const CURSOR_GLIDE = 0.15; // 놓친 뒤 움직이던 방향으로 별을 밀어 주는 최대 시간(초)
+const CURSOR_TAKEOVER = 0.3; // 다시 잡힌 손이 이 거리(화면 짧은 변 배) 안이면 흐려지던 별을 이어받는다
+// 주소 끝에 ?debug 를 붙이면 화면 위에 성능 숫자(초당 화면 수, 인식 시간)를 보여 준다(렉 원인 확인용).
+const DEBUG = typeof location !== 'undefined' && /[?&#]debug/.test(location.href);
 
 // 카메라 → 인식(손 또는 몸) → 장면 업데이트 → 그리기를 매 프레임 반복하는 게임 루프.
 // 장면은 tracker('hands' | 'pose'), needsMotion, showAvatar, hideTrail, hideCursor 속성으로 필요한 것을 알린다.
@@ -76,6 +88,7 @@ export class Game {
     this.nextPersonId = 0;
     this.nextHandId = 0;
     this.lastPointers = new Map(); // 포인터 key → 지난 위치(빠른 손짓 판정용)
+    this.cursors = new Map(); // 화면에 그리는 손 별 key → { x, y, vx, vy, seen }
     this.mouse = null;
     this.lastVideoTime = -1;
     this.lastDetectTs = 0;
@@ -97,6 +110,8 @@ export class Game {
     this.lightCanvas.width = 16;
     this.lightCanvas.height = 12;
     this.lightCtx = this.lightCanvas.getContext('2d', { willReadFrequently: true });
+    this.sampling = new Set(); // 비동기로 카메라 화면을 읽는 중인 캔버스
+    this.perf = { frames: 0, fps: 0, frameMs: 0, detectMs: 0, detectMax: 0, slow: 0, acc: 0 };
 
     // 손만으로 메뉴에 돌아갈 수 있는 집 버튼(오래 올려 둬야 눌리게 해서 실수 방지)
     this.homeButton = new HoverButton({
@@ -121,6 +136,11 @@ export class Game {
       pose: new PoseScene(this),
       stars: new StarsScene(this),
       car: new CarScene(this),
+      soccer: new SoccerScene(this),
+      baseball: new BaseballScene(this),
+      golf: new GolfScene(this),
+      slice: new SliceScene(this),
+      skewer: new SkewerScene(this),
       bodyConsonant: new BodyLetterScene(this, 'consonant'),
       bodyVowel: new BodyLetterScene(this, 'vowel'),
       bubble: new BubbleScene(this),
@@ -184,6 +204,7 @@ export class Game {
     this.people = [];
     this.faces = [];
     this.lastPointers.clear();
+    this.cursors.clear();
     this.motion = 0;
     this.motionPrev = null;
     this.absentTime = 0;
@@ -236,9 +257,9 @@ export class Game {
     this.unit = Math.min(w, h);
     // 안전을 위해 화면 중앙 80% 영역에서만 동작을 인식한다(PRD 6).
     this.zone = { x: w * 0.1, y: h * 0.1, w: w * 0.8, h: h * 0.8 };
-    // 집 버튼은 아이 손이 쉽게 닿는 왼쪽 아래(인식 영역 안쪽 모서리)에 둔다.
+    // 집 버튼은 아이 손이 쉽게 닿는 왼쪽 가운데(인식 영역 안쪽 왼쪽 끝)에 둔다.
     const hr = this.unit * 0.065;
-    this.homeButton.place(this.zone.x + hr * 1.1, this.zone.y + this.zone.h - hr * 1.1, hr);
+    this.homeButton.place(this.zone.x + hr * 1.1, this.zone.y + this.zone.h / 2, hr);
     for (const s of Object.values(this.scenes)) s.onResize?.();
   };
 
@@ -285,7 +306,57 @@ export class Game {
     if (this.showHome && this.scene === scene) this.homeButton.update(dt, input.pointers);
     this.particles.update(dt);
     this.render();
+    this.notePerf('frame', performance.now() - now, dt);
+    if (DEBUG) this.drawPerf();
   };
+
+  // 성능 기록: 1초마다 평균을 내고, 33ms(30fps) 넘게 걸린 프레임 수를 센다.
+  notePerf(kind, ms, dt = 0) {
+    const p = this.perf;
+    if (kind === 'detect') {
+      p.dSum = (p.dSum ?? 0) + ms;
+      p.dN = (p.dN ?? 0) + 1;
+      p.dMax = Math.max(p.dMax ?? 0, ms);
+      return;
+    }
+    p.frames++;
+    p.fSum = (p.fSum ?? 0) + ms;
+    if (ms > 33) p.slowNow = (p.slowNow ?? 0) + 1;
+    p.acc += dt;
+    if (p.acc < 1) return;
+    Object.assign(p, {
+      fps: Math.round(p.frames / p.acc),
+      frameMs: p.fSum / p.frames,
+      detectMs: p.dN ? p.dSum / p.dN : 0,
+      detectMax: p.dMax ?? 0,
+      slow: p.slowNow ?? 0,
+      frames: 0,
+      acc: 0,
+      fSum: 0,
+      dSum: 0,
+      dN: 0,
+      dMax: 0,
+      slowNow: 0,
+    });
+  }
+
+  drawPerf() {
+    const { ctx } = this;
+    const p = this.perf;
+    const v = this.video;
+    const lines = [
+      `화면 ${p.fps}fps · 한 프레임 ${p.frameMs.toFixed(1)}ms · 느린 프레임 ${p.slow}/초`,
+      `인식(${this.trackerKind}) 평균 ${p.detectMs.toFixed(1)}ms · 최대 ${p.detectMax.toFixed(1)}ms · ${trackerDelegate(this.trackerKind) ?? '-'}`,
+      `카메라 ${v.videoWidth}x${v.videoHeight} · 캔버스 ${this.canvas.width}x${this.canvas.height} · 반짝이 ${this.particles.list.length}`,
+    ];
+    ctx.save();
+    ctx.font = '14px monospace';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, 520, lines.length * 18 + 8);
+    ctx.fillStyle = '#fff';
+    lines.forEach((l, i) => ctx.fillText(l, 6, 18 + i * 18));
+    ctx.restore();
+  }
 
   // 비디오를 자르지 않고 화면 안에 전부 보이게(contain) 배치하는 좌표 변환 정보.
   // 카메라에 찍힌 범위를 모두 보여 주어 두 아이가 함께 들어오기 쉽다.
@@ -318,7 +389,9 @@ export class Game {
     this.lastDetectTs = ts;
     let result;
     try {
+      const t0 = performance.now();
       result = tracker.detectForVideo(v, ts);
+      this.notePerf('detect', performance.now() - t0);
     } catch (err) {
       console.warn(err);
       return;
@@ -413,11 +486,33 @@ export class Game {
     this.people = dropExtraLost(people, 2).sort((a, b) => a.id - b.id);
   }
 
+  // 카메라 화면을 작게 줄여 픽셀을 읽는다(움직임·밝기 확인용).
+  // 비디오를 캔버스에 그려 바로 getImageData 하면 GPU 작업이 끝날 때까지 화면이 멈춰(태블릿에서 큰 렉 원인)
+  // createImageBitmap 으로 줄이는 일을 비동기로 맡기고, 결과가 오면 작은 그림만 읽는다.
+  sampleVideo(ctx, w, h, onData) {
+    if (this.sampling.has(ctx)) return; // 지난 요청이 아직 안 끝났으면 건너뛴다
+    const read = (src) => {
+      ctx.drawImage(src, 0, 0, w, h);
+      onData(ctx.getImageData(0, 0, w, h).data);
+    };
+    if (typeof createImageBitmap !== 'function') return read(this.video);
+    this.sampling.add(ctx);
+    createImageBitmap(this.video, { resizeWidth: w, resizeHeight: h, resizeQuality: 'low' })
+      .then((bitmap) => {
+        read(bitmap);
+        bitmap.close();
+      })
+      .catch(() => {})
+      .finally(() => this.sampling.delete(ctx));
+  }
+
   // 프레임 차이(Frame Difference): 직전 프레임과 비교해 밝기가 바뀐 픽셀 비율(0~1)
   measureMotion() {
-    const ctx = this.motionCtx;
-    ctx.drawImage(this.video, 0, 0, MOTION_W, MOTION_H);
-    const data = ctx.getImageData(0, 0, MOTION_W, MOTION_H).data;
+    this.sampleVideo(this.motionCtx, MOTION_W, MOTION_H, (data) => this.updateMotion(data));
+  }
+
+  updateMotion(data) {
+    if (!this.scene.needsMotion) return;
     const cur = new Uint8Array(MOTION_W * MOTION_H);
     const prev = this.motionPrev;
     const x0 = Math.floor(MOTION_W * 0.1);
@@ -494,16 +589,18 @@ export class Game {
 
     this.lightCheckT -= dt;
     if (this.lightCheckT <= 0 && this.video.readyState >= 2) {
-      this.lightCheckT = 1.5;
-      this.lightCtx.drawImage(this.video, 0, 0, 16, 12);
-      const data = this.lightCtx.getImageData(0, 0, 16, 12).data;
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 4) sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-      this.dark = sum / (data.length / 4) < 45;
-      if (this.dark && this.time - this.lastDarkVoice > 20) {
-        this.lastDarkVoice = this.time;
-        speak('방이 조금 어두워요. 불을 켜 주세요!');
-      }
+      this.lightCheckT = LIGHT_CHECK_EVERY;
+      this.sampleVideo(this.lightCtx, 16, 12, (data) => this.updateLight(data));
+    }
+  }
+
+  updateLight(data) {
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    this.dark = sum / (data.length / 4) < 45;
+    if (this.dark && this.time - this.lastDarkVoice > 20) {
+      this.lastDarkVoice = this.time;
+      speak('방이 조금 어두워요. 불을 켜 주세요!');
     }
   }
 
@@ -582,17 +679,76 @@ export class Game {
       ctx.restore();
       return;
     }
-    const tips = this.hands.map((h) => h.tip);
-    for (const { pose } of this.people) for (const i of [P.lWrist, P.rWrist]) if (visible(pose[i])) tips.push(pose[i]);
-    if (this.mouse && !this.mouse.touch && this.time - this.mouse.t < MOUSE_IDLE) tips.push(this.mouse);
-    for (const p of tips) {
+    for (const c of this.updateCursors()) {
+      ctx.globalAlpha = c.alpha;
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, unit * 0.045, 0, Math.PI * 2);
+      ctx.arc(c.x, c.y, unit * 0.045, 0, Math.PI * 2);
       ctx.fill();
-      star(ctx, p.x, p.y, unit * 0.035, '#FFD23F', '#fff');
+      star(ctx, c.x, c.y, unit * 0.035, '#FFD23F', '#fff');
     }
     ctx.restore();
+  }
+
+  // 지금 보이는 손끝들로 별 위치를 갱신한다. 잠깐 놓친 손의 별은 움직이던 방향으로 조금 미끄러지며 흐려지고,
+  // 손이 다시 잡히면(새 id 여도 가까우면) 그 별을 이어받아 별이 깜빡이거나 둘로 보이지 않는다.
+  updateCursors() {
+    const t = this.time;
+    const tips = [];
+    for (const h of this.hands) if (!h.lost) tips.push({ key: `h${h.id}`, x: h.tip.x, y: h.tip.y });
+    for (const { id, pose, lost } of this.people) {
+      if (lost) continue;
+      // 빠르게 휘두르면 손목 확신도가 떨어지므로 기준을 낮춰 받는다(별이 덜 끊기게).
+      for (const i of [P.lWrist, P.rWrist]) if (visible(pose[i], 0.3)) tips.push({ key: `p${id}-${i}`, x: pose[i].x, y: pose[i].y });
+    }
+    if (this.mouse && !this.mouse.touch && t - this.mouse.t < MOUSE_IDLE) tips.push({ key: 'mouse', x: this.mouse.x, y: this.mouse.y });
+
+    const cursors = this.cursors;
+    for (const p of tips) {
+      let c = cursors.get(p.key);
+      if (!c) {
+        // 흐려지던 별 중 가장 가까운 것을 이어받는다.
+        let best = null;
+        let bestD = this.unit * CURSOR_TAKEOVER;
+        for (const [k, o] of cursors) {
+          if (o.seen === t || k === 'mouse') continue;
+          const d = Math.hypot(o.x - p.x, o.y - p.y);
+          if (d < bestD) [best, bestD] = [k, d];
+        }
+        if (best) {
+          c = cursors.get(best);
+          cursors.delete(best);
+        } else c = { x: p.x, y: p.y, vx: 0, vy: 0 };
+        cursors.set(p.key, c);
+      }
+      const gap = Math.max(1 / 60, t - (c.seen ?? t));
+      if (c.seen !== undefined && gap < 0.3) {
+        c.vx = (p.x - c.x) / gap;
+        c.vy = (p.y - c.y) / gap;
+      }
+      Object.assign(c, { x: p.x, y: p.y, seen: t, gx: p.x, gy: p.y });
+    }
+    const out = [];
+    for (const [k, c] of cursors) {
+      const age = t - c.seen;
+      if (age > CURSOR_HOLD) {
+        cursors.delete(k);
+        continue;
+      }
+      if (age > 0) {
+        // 놓친 동안: 움직이던 방향으로 잠깐 미끄러진다(너무 멀리 가지 않게 상한)
+        const k2 = Math.min(age, CURSOR_GLIDE);
+        let ox = c.vx * k2;
+        let oy = c.vy * k2;
+        const len = Math.hypot(ox, oy);
+        const max = this.unit * 0.15;
+        if (len > max) [ox, oy] = [(ox * max) / len, (oy * max) / len];
+        c.x = c.gx + ox;
+        c.y = c.gy + oy;
+      }
+      out.push({ x: c.x, y: c.y, alpha: age > 0 ? Math.max(0, 1 - age / CURSOR_HOLD) * 0.9 : 1 });
+    }
+    return out;
   }
 
   drawLoading() {

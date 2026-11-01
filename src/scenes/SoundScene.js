@@ -46,7 +46,7 @@ export class SoundScene {
     const r = this.cardR;
     // 왼쪽·왼쪽 위·오른쪽 위·오른쪽: 손을 옆이나 위로 뻗어야 닿는 자리(쉬는 손에 실수로 닿지 않게)
     this.slots = [
-      { x: z.x + r * 1.2, y: z.y + z.h * 0.62 },
+      { x: z.x + unit * 0.15 + r * 1.05, y: z.y + z.h * 0.62 }, // 왼쪽 가운데 집 버튼을 피해 조금 안쪽
       { x: z.x + z.w * 0.27, y: z.y + r * 1.2 },
       { x: z.x + z.w * 0.73, y: z.y + r * 1.2 },
       { x: z.x + z.w - r * 1.2, y: z.y + z.h * 0.62 },

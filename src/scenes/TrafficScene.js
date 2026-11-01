@@ -148,7 +148,7 @@ export class TrafficScene {
 
   get buddyPos() {
     const { zone: z, unit } = this.game;
-    return { x: z.x + unit * 0.2, y: z.y + z.h * 0.55 };
+    return { x: z.x + unit * 0.33, y: z.y + z.h * 0.55 }; // 왼쪽 가운데 집 버튼을 피해서
   }
 
   get light() {

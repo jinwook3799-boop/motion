@@ -36,8 +36,9 @@ export class WhackScene {
     const { w, h, unit, zone: z } = this.game;
     this.startButton.place(w / 2, h / 2, Math.min(unit * 0.18, w * 0.2));
     this.r = Math.min(z.w / (COLS * 2.8), z.h / (ROWS * 2.7));
+    const left = unit * 0.15; // 왼쪽 가운데 집 버튼 자리는 비워 둔다
     this.holes = Array.from({ length: COLS * ROWS }, (_, i) => ({
-      x: z.x + (z.w * ((i % COLS) + 0.5)) / COLS,
+      x: z.x + left + ((z.w - left) * ((i % COLS) + 0.5)) / COLS,
       y: z.y + z.h * (0.45 + Math.floor(i / COLS) * 0.4),
       mole: this.holes[i]?.mole ?? null,
     }));

@@ -71,7 +71,7 @@ export class BalanceScene {
     const { unit, zone: z } = this.game;
     this.logY = z.y + z.h * 0.72;
     this.bankW = z.w * 0.17;
-    this.x0 = z.x + z.w * 0.13;
+    this.x0 = z.x + Math.max(z.w * 0.13, unit * 0.2); // 출발점이 왼쪽 가운데 집 버튼과 겹치지 않게
     this.x1 = z.x + z.w * 0.87;
     this.friendS = unit * 0.055;
   }

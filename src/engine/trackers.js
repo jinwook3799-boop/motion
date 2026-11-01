@@ -49,12 +49,19 @@ async function create(kind) {
   });
   const fileset = await filesetPromise;
   try {
-    return await factories[kind](fileset, 'GPU');
+    const t = await factories[kind](fileset, 'GPU');
+    delegates[kind] = 'GPU';
+    return t;
   } catch (err) {
     console.warn(`${kind}: GPU 가속을 쓸 수 없어 CPU로 전환합니다.`, err);
+    delegates[kind] = 'CPU';
     return factories[kind](fileset, 'CPU');
   }
 }
+
+// 인식기가 GPU 로 도는지 CPU 로 도는지(CPU 면 태블릿에서 매우 느리다). 성능 표시용
+const delegates = {};
+export const trackerDelegate = (kind) => delegates[kind];
 
 // kind: 'hands' | 'pose' | 'face'. 한 번 만든 인식기는 재사용한다.
 export function loadTracker(kind) {

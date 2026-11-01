@@ -179,7 +179,7 @@ export class SequenceScene {
     this.slotR = Math.min(unit * 0.065, z.w * 0.05);
     this.slotY = this.game.h * 0.055 + unit * 0.035 + unit * 0.13;
     this.friendR = Math.min(z.w * 0.14, z.h * 0.3);
-    this.friendX = z.x + this.friendR * 1.15;
+    this.friendX = z.x + unit * 0.15 + this.friendR * 1.05; // 왼쪽 가운데 집 버튼을 피해서
     this.friendY = z.y + z.h * 0.55;
   }
 

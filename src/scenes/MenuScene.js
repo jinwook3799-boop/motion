@@ -5,6 +5,11 @@ import { campfire, car, cone, log, poseKid, train, waterGun } from '../engine/sc
 import { heart, homeIcon, magnifier, rainbowIcon, trafficLight } from '../engine/icons.js';
 import { sfx } from '../engine/audio.js';
 import { consonantIcon, vowelIcon } from './BodyLetterScene.js';
+import { menuIcon as soccerIcon } from './SoccerScene.js';
+import { menuIcon as baseballIcon } from './BaseballScene.js';
+import { menuIcon as golfIcon } from './GolfScene.js';
+import { menuIcon as sliceIcon } from './SliceScene.js';
+import { menuIcon as skewerIcon } from './SkewerScene.js';
 import { menuIcon as bubbleIcon } from './BubbleScene.js';
 import { menuIcon as fishIcon } from './FishScene.js';
 import { menuIcon as rhythmIcon } from './RhythmScene.js';
@@ -207,6 +212,11 @@ const GAMES = {
   countjump: { name: '숫자 점프!', color: COLORS.orange, icon: countjumpIcon },
   shape: { name: '몸으로 도형 만들기!', color: COLORS.green, icon: shapeIcon },
   face: { name: '표정 따라 하기!', color: COLORS.yellow, icon: faceIcon },
+  soccer: { name: '축구 공 차기!', color: COLORS.green, icon: soccerIcon },
+  baseball: { name: '야구 공 치기!', color: COLORS.blue, icon: baseballIcon },
+  golf: { name: '골프 공 치기!', color: COLORS.orange, icon: golfIcon },
+  slice: { name: '과일 싹둑!', color: COLORS.red, icon: sliceIcon },
+  skewer: { name: '꼬치 만들기!', color: COLORS.red, icon: skewerIcon },
   bodyConsonant: { name: '몸으로 자음 만들기!', color: COLORS.red, icon: consonantIcon },
   bodyVowel: { name: '몸으로 모음 만들기!', color: COLORS.purple, icon: vowelIcon },
   math: { name: '숫자 놀이!', color: COLORS.orange, icon: textIcon('1+2', COLORS.orange) },
@@ -216,11 +226,12 @@ const GAMES = {
 
 // 놀이가 많아 아이콘이 너무 작아지지 않도록 분류 → 놀이 두 단계로 고른다.
 const CATEGORIES = [
-  { name: '손 놀이!', color: COLORS.red, icon: handIcon, games: ['balloon', 'whack', 'instrument', 'drawing', 'bubble', 'fish', 'rhythm'] },
+  { name: '손 놀이!', color: COLORS.red, icon: handIcon, games: ['balloon', 'whack', 'instrument', 'drawing', 'bubble', 'fish', 'rhythm', 'slice'] },
   { name: '몸 놀이!', color: COLORS.green, icon: (ctx, r, t) => poseKid(ctx, 0, r * 0.12, r * 0.3, 'star', t), games: ['traffic', 'runner', 'train', 'stars', 'car', 'balance'] },
+  { name: '운동 놀이!', color: COLORS.orange, icon: soccerIcon, games: ['soccer', 'baseball', 'golf'] },
   { name: '따라 하기 놀이!', color: COLORS.purple, icon: mirrorIcon, games: ['mimic', 'pose', 'sequence', 'face', 'cross'] },
   { name: '함께 놀이!', color: COLORS.pink, icon: togetherIcon, games: ['highfive', 'rally', 'mirror', 'team', 'water', 'shape'] },
-  { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet', 'bodyConsonant', 'bodyVowel', 'countjump', 'sound', 'hidden'] },
+  { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet', 'bodyConsonant', 'bodyVowel', 'countjump', 'skewer', 'sound', 'hidden'] },
 ];
 
 // 글자 없는 메뉴: 그림 위에 손을 올리면 이름을 말해 주고, 계속 올려 두면 고른다.
@@ -272,7 +283,7 @@ export class MenuScene {
       b.place(z.x + z.w / 2 + (c - (inRow - 1) / 2) * cellW, z.y + cellH * (row + 0.5), r);
     });
     const br = unit * 0.065;
-    this.back.place(z.x + br * 1.1, z.y + z.h - br * 1.1, br); // 집 버튼과 같은 왼쪽 아래
+    this.back.place(z.x + br * 1.1, z.y + z.h / 2, br); // 집 버튼과 같은 왼쪽 가운데
   }
 
   enter() {

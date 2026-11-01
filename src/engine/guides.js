@@ -5,6 +5,11 @@ import { apple, heart, speakerIcon, trafficLight } from './icons.js';
 import { frog, lion, mole } from './animals.js';
 import { campfire, car, cone, flyingBird, kid, log, POSE_SHAPES, waterGun } from './scenery.js';
 import { consonantGuide, vowelGuide } from '../scenes/BodyLetterScene.js';
+import { guide as soccerGuide } from '../scenes/SoccerScene.js';
+import { guide as baseballGuide } from '../scenes/BaseballScene.js';
+import { guide as golfGuide } from '../scenes/GolfScene.js';
+import { guide as sliceGuide } from '../scenes/SliceScene.js';
+import { guide as skewerGuide } from '../scenes/SkewerScene.js';
 import { guide as bubbleGuide } from '../scenes/BubbleScene.js';
 import { guide as fishGuide } from '../scenes/FishScene.js';
 import { guide as rhythmGuide } from '../scenes/RhythmScene.js';
@@ -81,6 +86,11 @@ function chooseDemo(ctx, s, t, labels, question) {
 }
 
 export const GUIDES = {
+  soccer: soccerGuide,
+  baseball: baseballGuide,
+  golf: golfGuide,
+  slice: sliceGuide,
+  skewer: skewerGuide,
   bodyConsonant: consonantGuide,
   bodyVowel: vowelGuide,
   bubble: bubbleGuide,
@@ -159,7 +169,7 @@ export const GUIDES = {
     },
   },
   train: {
-    text: '제자리에서 무릎을 번갈아 높이 올리며 달려요. 빨리 달릴수록 기차가 빨라져요!',
+    text: '출발! 하면 제자리에서 무릎을 높이 올리며 힘껏 달려요. 도착역까지 얼마나 빨리 가는지 기록을 깨 봐요!',
     demo: (ctx, s, t) => {
       const step = Math.floor(t * 4) % 2 ? 1 : -1;
       kid(ctx, -s * 1.5, s * 0.1 - Math.abs(Math.sin(t * 12.5)) * s * 0.1, s, {
