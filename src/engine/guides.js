@@ -3,7 +3,16 @@
 import { balloon, drum, progressRing, star, COLORS } from './draw.js';
 import { apple, heart, speakerIcon, trafficLight } from './icons.js';
 import { frog, lion, mole } from './animals.js';
-import { campfire, flyingBird, kid, log, POSE_SHAPES, waterGun } from './scenery.js';
+import { campfire, car, cone, flyingBird, kid, log, POSE_SHAPES, waterGun } from './scenery.js';
+import { guide as bubbleGuide } from '../scenes/BubbleScene.js';
+import { guide as fishGuide } from '../scenes/FishScene.js';
+import { guide as rhythmGuide } from '../scenes/RhythmScene.js';
+import { guide as balanceGuide } from '../scenes/BalanceScene.js';
+import { guide as sequenceGuide } from '../scenes/SequenceScene.js';
+import { guide as crossGuide } from '../scenes/CrossScene.js';
+import { guide as countjumpGuide } from '../scenes/CountJumpScene.js';
+import { guide as shapeGuide } from '../scenes/ShapeScene.js';
+import { guide as faceGuide } from '../scenes/FaceScene.js';
 
 const REST = [[-0.7, 0.4], [0.7, 0.4]];
 const UP = [[-0.7, -1.9], [0.7, -1.9]];
@@ -71,6 +80,16 @@ function chooseDemo(ctx, s, t, labels, question) {
 }
 
 export const GUIDES = {
+  bubble: bubbleGuide,
+  fish: fishGuide,
+  rhythm: rhythmGuide,
+  balance: balanceGuide,
+  sequence: sequenceGuide,
+  cross: crossGuide,
+  countjump: countjumpGuide,
+  shape: shapeGuide,
+  face: faceGuide,
+
   balloon: {
     text: '손을 뻗어서 풍선을 펑펑 터뜨려요! 괴물이 나오면 콩! 쳐 주세요. 잘하면 점점 빨라져요.',
     demo: (ctx, s, t) =>
@@ -107,7 +126,7 @@ export const GUIDES = {
     },
   },
   traffic: {
-    text: '음악이 나오면 신나게 춤추고, 얼음! 하면 꽁꽁 멈춰요.',
+    text: '노래가 나오면 신나게 춤추고, 그대로 멈춰라! 하면 꽁꽁 멈춰요.',
     demo: (ctx, s, t) => {
       const go = loop(t, 4) < 0.5;
       trafficLight(ctx, s * 2.4, -s * 0.2, s * 0.6, go ? 'green' : 'red');
@@ -183,6 +202,28 @@ export const GUIDES = {
         period: 2.5,
         drawTarget: (c, x, y, hit) => (hit ? burst(c, x, y, s * 1.4) : star(c, x, y, s * 0.5, COLORS.yellow, '#fff')),
       });
+    },
+  },
+  car: {
+    text: '몸을 옆으로 움직이면 자동차가 따라와요. 길에 있는 고깔과 돌을 옆으로 쏙 피해요!',
+    demo: (ctx, s, t) => {
+      // 길 위로 고깔이 내려오고, 아이가 옆으로 걸어가면 자동차도 옆 차선으로 비킨다.
+      const p = loop(t, 3);
+      const side = Math.floor(t / 3) % 2 ? 1 : -1;
+      const move = ease(Math.max(0, Math.min(1, (p - 0.2) / 0.3)));
+      const lane = s * 1.1;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-lane * 1.5 + s * 1.2, -s * 3, lane * 3, s * 6);
+      ctx.clip();
+      ctx.fillStyle = '#9CA3AF';
+      ctx.fill();
+      ctx.fillStyle = COLORS.yellow;
+      for (const lx of [-0.5, 0.5]) for (let y = -s * 3.8; y < s * 3; y += s * 0.8) ctx.fillRect(lx * lane + s * 1.2 - s * 0.03, y + ((t * s * 2) % (s * 0.8)), s * 0.06, s * 0.4);
+      ctx.restore();
+      cone(ctx, s * 1.2, lerp(-s * 2.6, s * 2.4, p), s * 0.5);
+      car(ctx, s * 1.2 + side * lane * move, s * 1.9, s * 0.7, COLORS.blue, side * 0.2 * Math.sin(move * Math.PI));
+      kid(ctx, -s * 2.6 + side * s * 0.8 * move, s * 0.3, s * 0.85, { hands: REST });
     },
   },
   sound: {

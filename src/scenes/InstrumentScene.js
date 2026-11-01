@@ -34,6 +34,8 @@ export class InstrumentScene {
   }
 
   targetAt(p) {
+    // 왼쪽 아래 집 버튼 위는 북에서 뺀다(집 버튼에 손을 올려도 북이 울리지 않게).
+    if (this.game.homeButton.contains(p, this.game.homeButton.r * 0.15)) return null;
     const pad = this.game.unit * 0.02;
     const inside = (r) => p.x >= r.x - pad && p.x <= r.x + r.w + pad && p.y >= r.y - pad && p.y <= r.y + r.h + pad;
     if (inside(this.cymbal)) return this.cymbal;

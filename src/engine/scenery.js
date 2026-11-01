@@ -160,6 +160,7 @@ export function kid(ctx, x, y, s, shape) {
 
   const arms = () =>
     shape.hands.forEach(([hx, hy], i) => {
+      ctx.lineWidth = s * 0.28; // smile() 뒤에 그려도 팔 굵기가 같게
       const sx = (i === 0 ? -1 : 1) * s * 0.42;
       const elbow = shape.elbows?.[i];
       ctx.strokeStyle = color;
@@ -248,4 +249,107 @@ export function waterGun(ctx, x, y, s, angle, color) {
   ctx.arc(s * 0.15, -s * 0.38, s * 0.16, 0, Math.PI * 2); // 물통
   ctx.fill();
   ctx.restore();
+}
+
+// 위에서 내려다본 꼬마 자동차(앞이 위쪽). s = 차 너비, 운전하는 아이 얼굴이 보인다.
+// tilt = 좌우로 움직일 때 살짝 기울이는 각도
+export function car(ctx, x, y, s, color, tilt = 0) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  const h = s * 1.5;
+  // 그림자
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.55, -h / 2 + s * 0.08, s * 1.1, h, s * 0.35);
+  ctx.fill();
+  // 바퀴
+  ctx.fillStyle = COLORS.ink;
+  for (const wx of [-1, 1]) {
+    for (const wy of [-0.3, 0.3]) {
+      ctx.beginPath();
+      ctx.roundRect(wx * s * 0.5 - s * 0.12, wy * h - s * 0.2, s * 0.24, s * 0.4, s * 0.08);
+      ctx.fill();
+    }
+  }
+  // 차체
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(-s / 2, -h / 2, s, h, s * 0.35);
+  ctx.fill();
+  // 전조등
+  ctx.fillStyle = '#FFF3B0';
+  for (const lx of [-0.28, 0.28]) {
+    ctx.beginPath();
+    ctx.arc(lx * s, -h / 2 + s * 0.13, s * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // 앞 유리
+  ctx.fillStyle = '#BDE7FF';
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.36, -h * 0.26, s * 0.72, s * 0.24, s * 0.1);
+  ctx.fill();
+  // 운전하는 아이(머리와 웃는 얼굴)
+  ctx.fillStyle = '#FFD6A5';
+  ctx.beginPath();
+  ctx.arc(0, s * 0.18, s * 0.24, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#7A4E2D';
+  ctx.beginPath();
+  ctx.arc(0, s * 0.13, s * 0.25, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.fill();
+  smile(ctx, 0, s * 0.2, s * 0.32);
+  // 뒤 범퍼
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.3, h / 2 - s * 0.12, s * 0.6, s * 0.07, s * 0.035);
+  ctx.fill();
+  ctx.restore();
+}
+
+// 주황 고깔
+export function cone(ctx, x, y, s) {
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + s * 0.62, s * 0.75, s * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.orange;
+  ctx.beginPath();
+  ctx.roundRect(x - s * 0.7, y + s * 0.42, s * 1.4, s * 0.22, s * 0.08);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.12, y - s * 0.75);
+  ctx.lineTo(x + s * 0.12, y - s * 0.75);
+  ctx.lineTo(x + s * 0.5, y + s * 0.45);
+  ctx.lineTo(x - s * 0.5, y + s * 0.45);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.24, y - s * 0.2);
+  ctx.lineTo(x + s * 0.24, y - s * 0.2);
+  ctx.lineTo(x + s * 0.32, y + s * 0.05);
+  ctx.lineTo(x - s * 0.32, y + s * 0.05);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// 웃는 돌멩이
+export function rock(ctx, x, y, s) {
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + s * 0.5, s * 0.8, s * 0.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#A8A29E';
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.8, y + s * 0.45);
+  ctx.bezierCurveTo(x - s * 0.95, y - s * 0.2, x - s * 0.4, y - s * 0.7, x + s * 0.1, y - s * 0.6);
+  ctx.bezierCurveTo(x + s * 0.7, y - s * 0.55, x + s * 0.95, y, x + s * 0.8, y + s * 0.45);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.35, y - s * 0.3, s * 0.18, s * 0.1, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  smile(ctx, x, y + s * 0.05, s * 0.75);
 }

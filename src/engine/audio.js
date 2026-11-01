@@ -182,6 +182,14 @@ export const sfx = {
     noise({ dur: 0.6, gain: 0.25, filter: 'lowpass', freq: 1800, attack: 0.01 });
     tone({ freq: 700, freqEnd: 1400, start: 0.15, dur: 0.2, gain: 0.15 });
   },
+  // 자동차 경적 "빵빵"
+  horn() {
+    if (!ready()) return;
+    for (const start of [0, 0.22]) {
+      tone({ type: 'square', freq: 440, start, dur: 0.16, gain: 0.08 });
+      tone({ type: 'square', freq: 554, start, dur: 0.16, gain: 0.06 });
+    }
+  },
 };
 
 // 녹음된 소리(동물 울음소리 등). 앞뒤 무음을 잘라 내고 크기를 맞춰 재생한다.
@@ -296,5 +304,74 @@ export const music = {
   stop() {
     clearInterval(musicTimer);
     musicTimer = null;
+  },
+};
+
+// ---- 노래(계이름 악보) 연주 ----
+// 계이름 → 주파수(다장조). 낮은 음은 앞에 '_', 높은 음은 뒤에 "'" (예: '_시' = 낮은 시, "도'" = 높은 도)
+const SOLFA = { 도: 0, 레: 2, 미: 4, 파: 5, 솔: 7, 라: 9, 시: 11 };
+export function solfa(name) {
+  const low = name.startsWith('_');
+  const high = name.endsWith("'");
+  const semi = SOLFA[name.replace(/[_']/g, '')] + (low ? -12 : 0) + (high ? 12 : 0);
+  return 261.63 * 2 ** (semi / 12); // 가온 도(C4) 기준
+}
+
+let songTimer = null;
+let songDone = null;
+
+// 악보 notes = [[계이름, 박자 수], ...] 를 bpm 빠르기로 한 번 연주한다(쿵짝 반주 포함).
+// 다 연주하면 true, 중간에 song.stop() 하면 false 로 끝나는 Promise 를 돌려준다.
+export const song = {
+  play(notes, { bpm = 120, bass = true } = {}) {
+    song.stop();
+    if (!ready()) return new Promise((resolve) => setTimeout(() => resolve(true), 1500));
+    const beat = 60 / bpm;
+    const events = [];
+    let at = 0;
+    for (const [name, beats] of notes) {
+      events.push({ at, freq: solfa(name), dur: beats * beat });
+      at += beats * beat;
+    }
+    const total = at;
+    const start = ac.currentTime + 0.05;
+    let i = 0;
+    let b = 0;
+    songTimer = setInterval(() => {
+      const until = ac.currentTime - start + 0.12;
+      while (i < events.length && events[i].at < until) {
+        const e = events[i++];
+        const s = Math.max(0, start + e.at - ac.currentTime);
+        const d = Math.max(0.12, e.dur * 0.92);
+        tone({ type: 'triangle', freq: e.freq, start: s, dur: d, gain: 0.32 });
+        tone({ type: 'square', freq: e.freq, start: s, dur: Math.min(d, 0.25), gain: 0.04 });
+      }
+      // 반주: 박마다 낮은 '쿵'(도·솔 번갈아)과 '짝'
+      while (bass && b * beat < Math.min(until, total)) {
+        const s = Math.max(0, start + b * beat - ac.currentTime);
+        if (b % 2 === 0) tone({ type: 'triangle', freq: b % 4 === 0 ? 130.81 : 98, start: s, dur: beat * 0.8, gain: 0.22 });
+        else noise({ start: s, dur: 0.05, gain: 0.1, filter: 'highpass', freq: 6000 });
+        b++;
+      }
+    }, 25);
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        clearInterval(songTimer);
+        songTimer = null;
+        songDone = null;
+        resolve(true);
+      }, (total + 0.05) * 1000);
+      songDone = () => {
+        clearTimeout(timeout);
+        resolve(false);
+      };
+    });
+  },
+  stop() {
+    clearInterval(songTimer);
+    songTimer = null;
+    const done = songDone;
+    songDone = null;
+    done?.();
   },
 };

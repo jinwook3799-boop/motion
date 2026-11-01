@@ -1,9 +1,18 @@
 import { HoverButton } from '../engine/HoverButton.js';
 import { balloon, drum, star, COLORS, RAINBOW } from '../engine/draw.js';
 import { frog, lion, mole, rabbit } from '../engine/animals.js';
-import { campfire, log, poseKid, train, waterGun } from '../engine/scenery.js';
+import { campfire, car, cone, log, poseKid, train, waterGun } from '../engine/scenery.js';
 import { heart, homeIcon, magnifier, rainbowIcon, trafficLight } from '../engine/icons.js';
 import { sfx } from '../engine/audio.js';
+import { menuIcon as bubbleIcon } from './BubbleScene.js';
+import { menuIcon as fishIcon } from './FishScene.js';
+import { menuIcon as rhythmIcon } from './RhythmScene.js';
+import { menuIcon as balanceIcon } from './BalanceScene.js';
+import { menuIcon as sequenceIcon } from './SequenceScene.js';
+import { menuIcon as crossIcon } from './CrossScene.js';
+import { menuIcon as countjumpIcon } from './CountJumpScene.js';
+import { menuIcon as shapeIcon } from './ShapeScene.js';
+import { menuIcon as faceIcon } from './FaceScene.js';
 import { speak } from '../engine/voice.js';
 
 // 구멍에서 쏙 나온 두더지
@@ -64,6 +73,21 @@ function starsIcon(ctx, r) {
   star(ctx, 0, 0, r * 0.42, COLORS.yellow, '#fff');
   star(ctx, -r * 0.45, -r * 0.35, r * 0.1, '#fff');
   star(ctx, r * 0.45, r * 0.3, r * 0.08, '#fff');
+}
+
+// 도로 위 자동차와 고깔
+function carIcon(ctx, r) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#6B7280';
+  ctx.fillRect(-r * 0.55, -r, r * 1.1, r * 2);
+  ctx.fillStyle = COLORS.yellow;
+  for (let y = -r; y < r; y += r * 0.4) ctx.fillRect(-r * 0.02, y, r * 0.04, r * 0.2);
+  ctx.restore();
+  cone(ctx, r * 0.25, -r * 0.45, r * 0.2);
+  car(ctx, -r * 0.22, r * 0.25, r * 0.38, COLORS.blue, -0.15);
 }
 
 // 손바닥
@@ -167,11 +191,21 @@ const GAMES = {
   train: { name: '칙칙폭폭 기차!', color: COLORS.red, icon: trainIcon },
   pose: { name: '포즈 따라 하기!', color: COLORS.purple, icon: (ctx, r, t) => poseKid(ctx, 0, r * 0.15, r * 0.3, 'hooray', t) },
   stars: { name: '하늘 별 따기!', color: '#2B3A67', icon: starsIcon },
+  car: { name: '자동차 운전!', color: COLORS.blue, icon: carIcon },
   highfive: { name: '하이파이브 별!', color: COLORS.yellow, icon: highFiveIcon },
   rally: { name: '공 주고받기!', color: COLORS.red, icon: rallyIcon },
   mirror: { name: '거울 놀이!', color: COLORS.purple, icon: mirrorIcon },
   team: { name: '색깔 팀 풍선!', color: COLORS.blue, icon: teamIcon },
   water: { name: '물총 소방관!', color: '#4CC9F0', icon: waterIcon },
+  bubble: { name: '비눗방울 터뜨리기!', color: COLORS.blue, icon: bubbleIcon },
+  fish: { name: '물고기 잡기!', color: '#4CC9F0', icon: fishIcon },
+  rhythm: { name: '리듬 북 치기!', color: COLORS.red, icon: rhythmIcon },
+  balance: { name: '외나무다리 건너기!', color: COLORS.green, icon: balanceIcon },
+  sequence: { name: '순서대로 따라 해요!', color: COLORS.orange, icon: sequenceIcon },
+  cross: { name: '반대 손으로 콕!', color: COLORS.pink, icon: crossIcon },
+  countjump: { name: '숫자 점프!', color: COLORS.orange, icon: countjumpIcon },
+  shape: { name: '몸으로 도형 만들기!', color: COLORS.green, icon: shapeIcon },
+  face: { name: '표정 따라 하기!', color: COLORS.yellow, icon: faceIcon },
   math: { name: '숫자 놀이!', color: COLORS.orange, icon: textIcon('1+2', COLORS.orange) },
   hangul: { name: '한글 놀이!', color: COLORS.green, icon: textIcon('가', COLORS.green) },
   alphabet: { name: '알파벳 놀이!', color: COLORS.pink, icon: textIcon('ABC', COLORS.pink) },
@@ -179,10 +213,11 @@ const GAMES = {
 
 // 놀이가 많아 아이콘이 너무 작아지지 않도록 분류 → 놀이 두 단계로 고른다.
 const CATEGORIES = [
-  { name: '손 놀이!', color: COLORS.red, icon: handIcon, games: ['balloon', 'whack', 'sound', 'instrument', 'drawing', 'hidden'] },
-  { name: '몸 놀이!', color: COLORS.green, icon: (ctx, r, t) => poseKid(ctx, 0, r * 0.12, r * 0.3, 'star', t), games: ['mimic', 'traffic', 'runner', 'train', 'pose', 'stars'] },
-  { name: '함께 놀이!', color: COLORS.pink, icon: togetherIcon, games: ['highfive', 'rally', 'mirror', 'team', 'water'] },
-  { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet'] },
+  { name: '손 놀이!', color: COLORS.red, icon: handIcon, games: ['balloon', 'whack', 'instrument', 'drawing', 'bubble', 'fish', 'rhythm'] },
+  { name: '몸 놀이!', color: COLORS.green, icon: (ctx, r, t) => poseKid(ctx, 0, r * 0.12, r * 0.3, 'star', t), games: ['traffic', 'runner', 'train', 'stars', 'car', 'balance'] },
+  { name: '따라 하기 놀이!', color: COLORS.purple, icon: mirrorIcon, games: ['mimic', 'pose', 'sequence', 'face', 'cross'] },
+  { name: '함께 놀이!', color: COLORS.pink, icon: togetherIcon, games: ['highfive', 'rally', 'mirror', 'team', 'water', 'shape'] },
+  { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet', 'sound', 'hidden', 'countjump'] },
 ];
 
 // 글자 없는 메뉴: 그림 위에 손을 올리면 이름을 말해 주고, 계속 올려 두면 고른다.
@@ -234,7 +269,7 @@ export class MenuScene {
       b.place(z.x + z.w / 2 + (c - (inRow - 1) / 2) * cellW, z.y + cellH * (row + 0.5), r);
     });
     const br = unit * 0.065;
-    this.back.place(z.x + br * 1.1, z.y + br * 1.1, br);
+    this.back.place(z.x + br * 1.1, z.y + z.h - br * 1.1, br); // 집 버튼과 같은 왼쪽 아래
   }
 
   enter() {

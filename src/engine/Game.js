@@ -6,7 +6,7 @@ import { bodyCenter, drawAvatar, visible, P } from './pose.js';
 import { loadTracker } from './trackers.js';
 import { drawGuide, GUIDES } from './guides.js';
 import { delay } from './util.js';
-import { music, sfx } from './audio.js';
+import { music, sfx, song } from './audio.js';
 import { speak, stopSpeaking } from './voice.js';
 import { MenuScene } from '../scenes/MenuScene.js';
 import { BalloonScene } from '../scenes/BalloonScene.js';
@@ -29,6 +29,16 @@ import { RallyScene } from '../scenes/RallyScene.js';
 import { MirrorScene } from '../scenes/MirrorScene.js';
 import { TeamBalloonScene } from '../scenes/TeamBalloonScene.js';
 import { WaterScene } from '../scenes/WaterScene.js';
+import { CarScene } from '../scenes/CarScene.js';
+import { BubbleScene } from '../scenes/BubbleScene.js';
+import { FishScene } from '../scenes/FishScene.js';
+import { RhythmScene } from '../scenes/RhythmScene.js';
+import { BalanceScene } from '../scenes/BalanceScene.js';
+import { SequenceScene } from '../scenes/SequenceScene.js';
+import { CrossScene } from '../scenes/CrossScene.js';
+import { CountJumpScene } from '../scenes/CountJumpScene.js';
+import { ShapeScene } from '../scenes/ShapeScene.js';
+import { FaceScene } from '../scenes/FaceScene.js';
 
 const PALM_IDS = [0, 5, 9, 13, 17];
 const POSE_POINTERS = { lw: P.lWrist, rw: P.rWrist, li: P.lIndex, ri: P.rIndex };
@@ -61,6 +71,7 @@ export class Game {
     this.time = 0;
     this.hands = [];
     this.people = []; // 몸 인식된 아이들 [{ id, pose, center }]
+    this.faces = []; // 얼굴 인식(표정 놀이) [{ points, box, center, size, shapes }]
     this.nextPersonId = 0;
     this.nextHandId = 0;
     this.lastPointers = new Map(); // 포인터 key → 지난 위치(빠른 손짓 판정용)
@@ -108,6 +119,16 @@ export class Game {
       train: new TrainScene(this),
       pose: new PoseScene(this),
       stars: new StarsScene(this),
+      car: new CarScene(this),
+      bubble: new BubbleScene(this),
+      fish: new FishScene(this),
+      rhythm: new RhythmScene(this),
+      balance: new BalanceScene(this),
+      sequence: new SequenceScene(this),
+      cross: new CrossScene(this),
+      countjump: new CountJumpScene(this),
+      shape: new ShapeScene(this),
+      face: new FaceScene(this),
       highfive: new HighFiveScene(this),
       rally: new RallyScene(this),
       mirror: new MirrorScene(this),
@@ -147,6 +168,7 @@ export class Game {
     this.canvas.removeEventListener('pointercancel', this.onPointerUp);
     this.scene?.exit?.();
     music.stop();
+    song.stop();
     stopSpeaking();
   }
 
@@ -157,6 +179,7 @@ export class Game {
     this.particles.clear();
     this.hands = [];
     this.people = [];
+    this.faces = [];
     this.lastPointers.clear();
     this.motion = 0;
     this.motionPrev = null;
@@ -210,8 +233,9 @@ export class Game {
     this.unit = Math.min(w, h);
     // 안전을 위해 화면 중앙 80% 영역에서만 동작을 인식한다(PRD 6).
     this.zone = { x: w * 0.1, y: h * 0.1, w: w * 0.8, h: h * 0.8 };
+    // 집 버튼은 아이 손이 쉽게 닿는 왼쪽 아래(인식 영역 안쪽 모서리)에 둔다.
     const hr = this.unit * 0.065;
-    this.homeButton.place(this.zone.x + hr * 1.1, this.zone.y + hr * 1.1, hr);
+    this.homeButton.place(this.zone.x + hr * 1.1, this.zone.y + this.zone.h - hr * 1.1, hr);
     for (const s of Object.values(this.scenes)) s.onResize?.();
   };
 
@@ -294,6 +318,22 @@ export class Game {
       result = tracker.detectForVideo(v, ts);
     } catch (err) {
       console.warn(err);
+      return;
+    }
+
+    if (kind === 'face') {
+      // 얼굴: 화면 좌표 점들 + 표정 점수 { smile 등 이름: 0~1 }. 화면 왼쪽 얼굴부터.
+      const blend = result.faceBlendshapes ?? [];
+      this.faces = (result.faceLandmarks ?? [])
+        .map((lms, i) => {
+          const points = lms.map((l) => this.toScreen(l));
+          const xs = points.map((p) => p.x);
+          const ys = points.map((p) => p.y);
+          const box = { x: Math.min(...xs), y: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
+          const shapes = Object.fromEntries((blend[i]?.categories ?? []).map((c) => [c.categoryName, c.score]));
+          return { points, box, center: { x: (box.x + box.x2) / 2, y: (box.y + box.y2) / 2 }, size: box.x2 - box.x, shapes };
+        })
+        .sort((a, b) => a.center.x - b.center.x);
       return;
     }
 
@@ -430,9 +470,10 @@ export class Game {
     return {
       hands: this.hands,
       people: this.people, // [{ id, pose }] 최대 2명
+      faces: this.faces, // 얼굴 놀이에서만 채워진다
       pointers,
       motion: this.motion,
-      present: this.hands.length > 0 || this.people.length > 0 || !!mouseActive,
+      present: this.hands.length > 0 || this.people.length > 0 || this.faces.length > 0 || !!mouseActive,
     };
   }
 

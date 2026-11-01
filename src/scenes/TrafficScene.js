@@ -1,12 +1,20 @@
 import { HoverButton } from '../engine/HoverButton.js';
 import { playIcon, progressRing, star, COLORS, RAINBOW } from '../engine/draw.js';
 import { buddy, trafficLight } from '../engine/icons.js';
-import { music, sfx } from '../engine/audio.js';
+import { sfx, song } from '../engine/audio.js';
 import { speak } from '../engine/voice.js';
 
 const GOAL = 5;
 const FREEZE_TIME = 3; // 얼음 상태로 버텨야 하는 시간(초)
-const REACTION_GRACE = 0.9; // "얼음!"을 듣고 멈추기까지 봐주는 시간(초)
+const REACTION_GRACE = 0.9; // "그대로 멈춰라" 노래가 끝난 뒤 멈추기까지 봐주는 시간(초)
+
+// 동요 '그대로 멈춰라' 가락(다장조 계이름, [계이름, 박자]). 박자는 귀로 맞춘 것이라 실제 노래와 다르면 여기서 고친다.
+// 춤추는 부분: "즐겁게 춤을 추다가" — 무작위로 1~3번 되풀이해서 언제 멈출지 모르게 한다.
+const DANCE = [['솔', 0.5], ['미', 0.5], ['도', 1], ['레', 0.5], ['미', 0.5], ['파', 0.5], ['레', 0.5], ['_시', 2]];
+// 멈추는 부분: "그대로 멈춰라" — 이 가락이 나오면 배경이 빨개지고, 끝나면 꽁꽁 멈춰 있어야 한다.
+const STOP = [['도', 0.5], ['도', 0.5], ['도', 1], ['미', 0.5], ['미', 0.5], ['솔', 2]];
+const SONG_BPM = 120;
+const DANCE_REPEAT = [1, 3];
 // 움직임 판정 기준. 화면 픽셀 중 이 비율 이상이 바뀌면 '움직였다'로 본다.
 const MOVE_THRESHOLD = 0.035;
 const MOVE_ALLOWANCE = 0.5; // 이 시간(초) 이상 움직여야 실패 → 살짝 흔들리는 건 봐준다
@@ -35,19 +43,33 @@ export class TrafficScene {
   }
 
   exit() {
-    music.stop();
+    this.token = (this.token ?? 0) + 1;
+    song.stop();
+  }
+
+  after(promise, fn) {
+    const token = (this.token = (this.token ?? 0) + 1);
+    promise.then((ok) => {
+      if (ok !== false && this.token === token) fn();
+    });
   }
 
   onTap(x, y) {
     if (this.state === 'ready') this.startButton.tap(x, y);
   }
 
+  // "즐겁게 춤을 추다가"를 1~3번 부르고 나서 "그대로 멈춰라"
   go() {
     if (this.score >= GOAL) this.score = 0;
     this.state = 'go';
-    this.stateT = 4 + Math.random() * 4;
-    music.start();
-    speak('출발!');
+    const n = DANCE_REPEAT[0] + Math.floor(Math.random() * (DANCE_REPEAT[1] - DANCE_REPEAT[0] + 1));
+    this.after(song.play(Array.from({ length: n }, () => DANCE).flat(), { bpm: SONG_BPM }), () => this.stopSong());
+  }
+
+  // "그대로 멈춰라" 가락이 나오는 동안 빨간 신호로 바꾸고, 가락이 끝나면 정지 판정을 시작한다.
+  stopSong() {
+    this.state = 'singStop';
+    this.after(song.play(STOP, { bpm: SONG_BPM, bass: false }), () => this.freeze());
   }
 
   freeze() {
@@ -55,9 +77,7 @@ export class TrafficScene {
     this.grace = REACTION_GRACE;
     this.stateT = FREEZE_TIME;
     this.moved = 0;
-    music.stop();
     sfx.freeze();
-    speak('얼음!');
   }
 
   update(dt, input) {
@@ -70,8 +90,6 @@ export class TrafficScene {
       case 'go':
         // 많이 움직일수록 친구도 신나게 춤춘다.
         this.phase += dt * (3 + Math.min(1, input.motion * 15) * 6);
-        this.stateT -= dt;
-        if (this.stateT <= 0) this.freeze();
         break;
       case 'stop':
         if (this.grace > 0) {
@@ -135,7 +153,7 @@ export class TrafficScene {
 
   get light() {
     if (this.state === 'go' || this.state === 'celebrate') return 'green';
-    if (this.state === 'stop' || this.state === 'result') return 'red';
+    if (this.state === 'singStop' || this.state === 'stop' || this.state === 'result') return 'red';
     return null;
   }
 
@@ -153,7 +171,7 @@ export class TrafficScene {
       this.startButton.draw(ctx);
     }
 
-    const frozen = this.state === 'stop' || this.state === 'result';
+    const frozen = this.state === 'singStop' || this.state === 'stop' || this.state === 'result';
     const b = this.buddyPos;
     buddy(ctx, b.x, b.y, unit * 0.1, this.phase, frozen);
     if (this.state === 'stop' && this.grace <= 0) {

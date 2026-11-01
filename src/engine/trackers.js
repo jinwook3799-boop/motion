@@ -1,4 +1,4 @@
-import { FilesetResolver, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
+import { FaceLandmarker, FilesetResolver, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -26,6 +26,17 @@ const factories = {
       minPosePresenceConfidence: MIN_TRACKING,
       minTrackingConfidence: MIN_TRACKING,
     }),
+  // 표정 놀이용: 얼굴 점과 표정 점수(blendshapes: 웃음, 입 벌림, 눈썹 올림 등)
+  face: (fileset, delegate) =>
+    FaceLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: `${BASE}mediapipe/face_landmarker.task`, delegate },
+      runningMode: 'VIDEO',
+      numFaces: 2, // 아이 두 명
+      outputFaceBlendshapes: true,
+      minFaceDetectionConfidence: MIN_CONFIDENCE,
+      minFacePresenceConfidence: MIN_TRACKING,
+      minTrackingConfidence: MIN_TRACKING,
+    }),
 };
 
 let filesetPromise = null;
@@ -45,7 +56,7 @@ async function create(kind) {
   }
 }
 
-// kind: 'hands' | 'pose'. 한 번 만든 인식기는 재사용한다.
+// kind: 'hands' | 'pose' | 'face'. 한 번 만든 인식기는 재사용한다.
 export function loadTracker(kind) {
   cache[kind] ??= create(kind).catch((err) => {
     delete cache[kind];
