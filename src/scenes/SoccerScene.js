@@ -390,7 +390,7 @@ export class SoccerScene {
     const foot = t && footY(t.pose);
     if (foot !== null && foot !== undefined) ky = clamp(foot - this.br * 0.6, z.y + z.h * 0.6, this.defaultKickY);
     this.kickY += (ky - this.kickY) * Math.min(1, dt * 3);
-    // 집 버튼(놀이 영역 왼쪽 가운데)과 공이 멈출 자리가 겹치면 공을 오른쪽으로 비켜 둔다.
+    // 집 버튼과 공이 멈출 자리가 겹치면 공을 오른쪽으로 비켜 둔다.
     let minX = z.x + this.br * 1.5;
     if (hb && Math.abs(this.kickY - hb.y) < hb.r + this.br * 1.6) minX = Math.max(minX, hb.x + hb.r + this.br * 1.6);
     const maxX = z.x + z.w - this.br * 1.5;
@@ -789,7 +789,7 @@ function footY(pose) {
 }
 
 // 축구공: 하얀 공에 검은 오각형 무늬(rot 만큼 굴러간 모습)
-function soccerBall(ctx, x, y, r, rot = 0) {
+export function soccerBall(ctx, x, y, r, rot = 0) {
   ctx.save();
   ctx.translate(x, y);
   ctx.fillStyle = '#fff';
@@ -830,7 +830,7 @@ function soccerBall(ctx, x, y, r, rot = 0) {
 }
 
 // 작은 골대(설명 카드·메뉴 아이콘용). (x, y) = 골대 가운데 아래
-function miniGoal(ctx, x, y, w, h, shake = 0) {
+export function miniGoal(ctx, x, y, w, h, shake = 0) {
   ctx.save();
   ctx.fillStyle = 'rgba(200,200,210,0.35)';
   ctx.fillRect(x - w / 2, y - h, w, h);

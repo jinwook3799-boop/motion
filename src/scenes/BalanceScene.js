@@ -350,10 +350,10 @@ export class BalanceScene {
     ctx.fill();
   }
 
-  // 왼쪽 위: 따라 할 자세(한 발 들고 비행기 팔) + 이번 다리 건너기 진행 표시
+  // 오른쪽 위(왼쪽 위는 집 버튼 자리): 따라 할 자세(한 발 들고 비행기 팔) + 이번 다리 건너기 진행 표시
   drawHint(ctx, z, unit, time) {
     const r = Math.min(z.w * 0.1, z.h * 0.17);
-    const x = z.x + r * 1.25;
+    const x = z.x + z.w - r * 1.25;
     const y = z.y + r * 1.35;
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
     ctx.beginPath();

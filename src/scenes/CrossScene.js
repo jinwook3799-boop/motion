@@ -157,7 +157,7 @@ export class CrossScene {
     sfx.peek();
   }
 
-  // 별 위치(화면). 놀이 영역 밖이나 왼쪽 아래 집 버튼 자리는 피한다.
+  // 별 위치(화면). 놀이 영역 밖이나 집 버튼(왼쪽 위) 자리는 피한다.
   targetPos() {
     const o = this.target;
     const a = o.anchor;
@@ -167,7 +167,7 @@ export class CrossScene {
     let y = a.y + o.oy * a.sw;
     x = Math.max(z.x + r * 1.4, Math.min(z.x + z.w - r * 1.4, x));
     y = Math.max(z.y + unit * 0.16 + r, Math.min(z.y + z.h - r * 1.4, y));
-    if (hb && Math.hypot(x - hb.x, y - hb.y) < hb.r + r * 1.6) y = hb.y - hb.r - r * 1.6;
+    if (hb && Math.hypot(x - hb.x, y - hb.y) < hb.r + r * 1.6) y = hb.y + hb.r + r * 1.6;
     return { x, y, r };
   }
 

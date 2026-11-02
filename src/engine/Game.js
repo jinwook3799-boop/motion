@@ -31,7 +31,9 @@ import { TeamBalloonScene } from '../scenes/TeamBalloonScene.js';
 import { WaterScene } from '../scenes/WaterScene.js';
 import { CarScene } from '../scenes/CarScene.js';
 import { SoccerScene } from '../scenes/SoccerScene.js';
+import { KeeperScene } from '../scenes/KeeperScene.js';
 import { BaseballScene } from '../scenes/BaseballScene.js';
+import { PitcherScene } from '../scenes/PitcherScene.js';
 import { GolfScene } from '../scenes/GolfScene.js';
 import { SliceScene } from '../scenes/SliceScene.js';
 import { SkewerScene } from '../scenes/SkewerScene.js';
@@ -137,7 +139,9 @@ export class Game {
       stars: new StarsScene(this),
       car: new CarScene(this),
       soccer: new SoccerScene(this),
+      keeper: new KeeperScene(this),
       baseball: new BaseballScene(this),
+      pitcher: new PitcherScene(this),
       golf: new GolfScene(this),
       slice: new SliceScene(this),
       skewer: new SkewerScene(this),
@@ -257,9 +261,9 @@ export class Game {
     this.unit = Math.min(w, h);
     // 안전을 위해 화면 중앙 80% 영역에서만 동작을 인식한다(PRD 6).
     this.zone = { x: w * 0.1, y: h * 0.1, w: w * 0.8, h: h * 0.8 };
-    // 집 버튼은 아이 손이 쉽게 닿는 왼쪽 가운데(인식 영역 안쪽 왼쪽 끝)에 둔다.
+    // 집 버튼은 왼쪽 위(인식 영역 안쪽 모서리)에 둔다.
     const hr = this.unit * 0.065;
-    this.homeButton.place(this.zone.x + hr * 1.1, this.zone.y + this.zone.h / 2, hr);
+    this.homeButton.place(this.zone.x + hr * 1.1, this.zone.y + hr * 1.1, hr);
     for (const s of Object.values(this.scenes)) s.onResize?.();
   };
 

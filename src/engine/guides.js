@@ -6,7 +6,9 @@ import { frog, lion, mole } from './animals.js';
 import { campfire, car, cone, flyingBird, kid, log, POSE_SHAPES, waterGun } from './scenery.js';
 import { consonantGuide, vowelGuide } from '../scenes/BodyLetterScene.js';
 import { guide as soccerGuide } from '../scenes/SoccerScene.js';
+import { guide as keeperGuide } from '../scenes/KeeperScene.js';
 import { guide as baseballGuide } from '../scenes/BaseballScene.js';
+import { guide as pitcherGuide } from '../scenes/PitcherScene.js';
 import { guide as golfGuide } from '../scenes/GolfScene.js';
 import { guide as sliceGuide } from '../scenes/SliceScene.js';
 import { guide as skewerGuide } from '../scenes/SkewerScene.js';
@@ -87,7 +89,9 @@ function chooseDemo(ctx, s, t, labels, question) {
 
 export const GUIDES = {
   soccer: soccerGuide,
+  keeper: keeperGuide,
   baseball: baseballGuide,
+  pitcher: pitcherGuide,
   golf: golfGuide,
   slice: sliceGuide,
   skewer: skewerGuide,

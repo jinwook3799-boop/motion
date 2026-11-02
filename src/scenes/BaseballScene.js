@@ -40,7 +40,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // ---------- 그림 ----------
 
 // 야구공. 실밥이 돌아가며 날아오는 느낌
-function baseball(ctx, x, y, r, spin = 0) {
+export function baseball(ctx, x, y, r, spin = 0) {
   ctx.save();
   ctx.translate(x, y);
   ctx.fillStyle = 'rgba(0,0,0,0.12)';
@@ -68,7 +68,7 @@ function baseball(ctx, x, y, r, spin = 0) {
 }
 
 // 장난감 방망이. (x, y) = 손잡이(손 위치), angle 방향으로 뻗는다. len = 길이
-function bat(ctx, x, y, angle, len, grip = COLORS.blue) {
+export function bat(ctx, x, y, angle, len, grip = COLORS.blue) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
@@ -108,7 +108,7 @@ function bat(ctx, x, y, angle, len, grip = COLORS.blue) {
 }
 
 // 포수 글러브(놓친 공을 받는 곳)
-function mitt(ctx, x, y, s, squash = 0) {
+export function mitt(ctx, x, y, s, squash = 0) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(1 + squash * 0.12, 1 - squash * 0.12);
@@ -212,7 +212,7 @@ function pitcher(ctx, x, y, s, { wind = 0, thrown = 0, ball = true, t = 0 } = {}
 }
 
 // 아이 머리 위에서 콩콩 뛰는 '네 차례!' 표시
-function turnMarker(ctx, x, y, s, color, t) {
+export function turnMarker(ctx, x, y, s, color, t) {
   const hop = Math.abs(Math.sin(t * 5)) * s * 0.5;
   ctx.save();
   ctx.translate(x, y - hop);
@@ -480,7 +480,7 @@ export class BaseballScene {
     r1 = this.r1 + (r1 - this.r1) * Math.min(1, dt * 4);
     x = clamp(x, z.x + r1 * 1.5, z.x + z.w - r1 * 1.5);
     y = clamp(y, this.pitchY + this.pitchS * 3, z.y + z.h - r1 * 1.5);
-    // 왼쪽 아래 집 버튼과 겹치지 않게
+    // 집 버튼과 겹치지 않게
     if (hb && Math.hypot(x - hb.x, y - hb.y) < hb.r + r1 * 2) x = hb.x + hb.r + r1 * 2;
     if (!this.spot) this.spot = { x, y };
     const k = Math.min(1, dt * 6);
@@ -490,7 +490,7 @@ export class BaseballScene {
     // 포수 글러브: 타격 지점 아래
     const ms = this.mittS;
     let mx = this.spot.x;
-    if (hb && mx < hb.x + hb.r * 1.3 + ms * 1.2) mx = hb.x + hb.r * 1.3 + ms * 1.2;
+    if (hb && Math.abs(z.y + z.h - ms * 1.2 - hb.y) < hb.r + ms * 1.5 && mx < hb.x + hb.r * 1.3 + ms * 1.2) mx = hb.x + hb.r * 1.3 + ms * 1.2;
     this.mitt = { x: mx, y: z.y + z.h - ms * 1.2 };
   }
 

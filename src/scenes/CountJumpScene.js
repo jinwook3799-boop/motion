@@ -197,7 +197,7 @@ export class CountJumpScene {
   // ---- 그리기 ----
 
   // 칸 배치: 놀이 영역 왼쪽 위 세로 카드(아이 몸을 가리지 않게). 맨 위 큰 숫자, 그 아래 칸이
-  // 5개씩 세로로(6개부터는 두 줄 — 십 칸 틀처럼). 집 버튼(왼쪽 아래)과 겹치지 않는 높이.
+  // 5개씩 세로로(6개부터는 두 줄 — 십 칸 틀처럼). 왼쪽 위 집 버튼 바로 아래에서 시작.
   layout() {
     const { unit, zone: z } = this.game;
     const n = Math.max(1, this.target);
@@ -208,7 +208,7 @@ export class CountJumpScene {
     const digitR = unit * 0.055;
     const cardW = Math.max(digitR * 2, cols * gap) + S * 1.2;
     const cardH = S * 0.6 + digitR * 2 + S * 0.4 + rows * gap + S * 0.4;
-    return { n, S, gap, cols, rows, digitR, cardW, cardH, cardX: z.x + unit * 0.02, cardY: z.y + unit * 0.02 };
+    return { n, S, gap, cols, rows, digitR, cardW, cardH, cardX: z.x + unit * 0.02, cardY: z.y + unit * 0.16 };
   }
 
   slotPos(i) {

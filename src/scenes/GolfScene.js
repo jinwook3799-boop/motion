@@ -341,8 +341,8 @@ export class GolfScene {
     }
     y = clamp(y, z.y + z.h * 0.55, z.y + z.h - r * 2.5);
     x = clamp(x, z.x + r * 3, z.x + z.w - r * 3);
-    // 집 버튼(왼쪽 아래)과 겹치지 않게 오른쪽으로 비킨다.
-    if (hb && y > hb.y - hb.r * 2.2) x = Math.max(x, hb.x + hb.r * 2.4 + r);
+    // 집 버튼과 같은 높이면 겹치지 않게 오른쪽으로 비킨다.
+    if (hb && Math.abs(y - hb.y) < hb.r * 2.2) x = Math.max(x, hb.x + hb.r * 2.4 + r);
     return { x, y };
   }
 
