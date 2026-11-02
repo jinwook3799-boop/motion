@@ -34,6 +34,9 @@ import { SoccerScene } from '../scenes/SoccerScene.js';
 import { KeeperScene } from '../scenes/KeeperScene.js';
 import { BaseballScene } from '../scenes/BaseballScene.js';
 import { PitcherScene } from '../scenes/PitcherScene.js';
+import { TennisScene } from '../scenes/TennisScene.js';
+import { SwimScene } from '../scenes/SwimScene.js';
+import { FencingScene } from '../scenes/FencingScene.js';
 import { GolfScene } from '../scenes/GolfScene.js';
 import { SliceScene } from '../scenes/SliceScene.js';
 import { SkewerScene } from '../scenes/SkewerScene.js';
@@ -142,6 +145,9 @@ export class Game {
       keeper: new KeeperScene(this),
       baseball: new BaseballScene(this),
       pitcher: new PitcherScene(this),
+      tennis: new TennisScene(this),
+      swim: new SwimScene(this),
+      fencing: new FencingScene(this),
       golf: new GolfScene(this),
       slice: new SliceScene(this),
       skewer: new SkewerScene(this),

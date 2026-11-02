@@ -9,6 +9,9 @@ import { menuIcon as soccerIcon } from './SoccerScene.js';
 import { menuIcon as keeperIcon } from './KeeperScene.js';
 import { menuIcon as baseballIcon } from './BaseballScene.js';
 import { menuIcon as pitcherIcon } from './PitcherScene.js';
+import { menuIcon as tennisIcon } from './TennisScene.js';
+import { menuIcon as swimIcon } from './SwimScene.js';
+import { menuIcon as fencingIcon } from './FencingScene.js';
 import { menuIcon as golfIcon } from './GolfScene.js';
 import { menuIcon as sliceIcon } from './SliceScene.js';
 import { menuIcon as skewerIcon } from './SkewerScene.js';
@@ -218,6 +221,9 @@ const GAMES = {
   keeper: { name: '골키퍼 놀이!', color: COLORS.yellow, icon: keeperIcon },
   baseball: { name: '야구 공 치기!', color: COLORS.blue, icon: baseballIcon },
   pitcher: { name: '야구 투수 놀이!', color: COLORS.red, icon: pitcherIcon },
+  tennis: { name: '테니스 놀이!', color: COLORS.green, icon: tennisIcon },
+  swim: { name: '수영 놀이!', color: COLORS.blue, icon: swimIcon },
+  fencing: { name: '펜싱 놀이!', color: COLORS.purple, icon: fencingIcon },
   golf: { name: '골프 공 치기!', color: COLORS.orange, icon: golfIcon },
   slice: { name: '과일 싹둑!', color: COLORS.red, icon: sliceIcon },
   skewer: { name: '꼬치 만들기!', color: COLORS.red, icon: skewerIcon },
@@ -232,7 +238,7 @@ const GAMES = {
 const CATEGORIES = [
   { name: '손 놀이!', color: COLORS.red, icon: handIcon, games: ['balloon', 'whack', 'instrument', 'drawing', 'bubble', 'fish', 'rhythm', 'slice'] },
   { name: '몸 놀이!', color: COLORS.green, icon: (ctx, r, t) => poseKid(ctx, 0, r * 0.12, r * 0.3, 'star', t), games: ['traffic', 'runner', 'train', 'stars', 'car', 'balance'] },
-  { name: '운동 놀이!', color: COLORS.orange, icon: soccerIcon, games: ['soccer', 'keeper', 'baseball', 'pitcher', 'golf'] },
+  { name: '운동 놀이!', color: COLORS.orange, icon: soccerIcon, games: ['soccer', 'keeper', 'baseball', 'pitcher', 'golf', 'tennis', 'swim', 'fencing'] },
   { name: '따라 하기 놀이!', color: COLORS.purple, icon: mirrorIcon, games: ['mimic', 'pose', 'sequence', 'face', 'cross'] },
   { name: '함께 놀이!', color: COLORS.pink, icon: togetherIcon, games: ['highfive', 'rally', 'mirror', 'team', 'water', 'shape'] },
   { name: '배움 놀이!', color: COLORS.blue, icon: textIcon('가', COLORS.blue), games: ['math', 'hangul', 'alphabet', 'bodyConsonant', 'bodyVowel', 'countjump', 'skewer', 'sound', 'hidden'] },

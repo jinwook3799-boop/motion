@@ -190,6 +190,21 @@ export const sfx = {
       tone({ type: 'square', freq: 554, start, dur: 0.16, gain: 0.06 });
     }
   },
+  // 물장구 "첨벙"
+  splash() {
+    if (!ready()) return;
+    noise({ dur: 0.35, gain: 0.3, filter: 'bandpass', freq: 900, q: 0.6 });
+    noise({ start: 0.05, dur: 0.25, gain: 0.12, filter: 'highpass', freq: 4000 });
+    tone({ freq: 520, freqEnd: 180, dur: 0.12, gain: 0.12 });
+  },
+  // 칼끼리 부딪히는 "챙!"
+  clang() {
+    if (!ready()) return;
+    noise({ dur: 0.06, gain: 0.3, filter: 'highpass', freq: 5000 });
+    tone({ type: 'triangle', freq: 1480, dur: 0.45, gain: 0.2 });
+    tone({ freq: 2230, dur: 0.35, gain: 0.1 });
+    tone({ freq: 3110, dur: 0.2, gain: 0.05 });
+  },
 };
 
 // 녹음된 소리(동물 울음소리 등). 앞뒤 무음을 잘라 내고 크기를 맞춰 재생한다.

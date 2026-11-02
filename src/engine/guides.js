@@ -9,6 +9,9 @@ import { guide as soccerGuide } from '../scenes/SoccerScene.js';
 import { guide as keeperGuide } from '../scenes/KeeperScene.js';
 import { guide as baseballGuide } from '../scenes/BaseballScene.js';
 import { guide as pitcherGuide } from '../scenes/PitcherScene.js';
+import { guide as tennisGuide } from '../scenes/TennisScene.js';
+import { guide as swimGuide } from '../scenes/SwimScene.js';
+import { guide as fencingGuide } from '../scenes/FencingScene.js';
 import { guide as golfGuide } from '../scenes/GolfScene.js';
 import { guide as sliceGuide } from '../scenes/SliceScene.js';
 import { guide as skewerGuide } from '../scenes/SkewerScene.js';
@@ -92,6 +95,9 @@ export const GUIDES = {
   keeper: keeperGuide,
   baseball: baseballGuide,
   pitcher: pitcherGuide,
+  tennis: tennisGuide,
+  swim: swimGuide,
+  fencing: fencingGuide,
   golf: golfGuide,
   slice: sliceGuide,
   skewer: skewerGuide,
